@@ -1,0 +1,21 @@
+[
+  {
+    "guid": "a7b3c1d2-4e5f-6789-abcd-ef0123456789",
+    "name": "LikeLoveHate",
+    "overview": "React to media with Like, Love, or Hate",
+    "description": "Adds Like, Love, and Hate reaction buttons to media item detail pages using Material Design icons.",
+    "owner": "DrBiznes",
+    "category": "General",
+    "imageUrl": "",
+    "versions": [
+      {
+        "version": "1.0.0.0",
+        "changelog": "## 🎉 LikeLoveHate v1.0.0.0\r\n\r\nFirst release of the LikeLoveHate plugin for Jellyfin.\r\n\r\n### Features\r\n- **Like** (👍), **Love** (👍👍), and **Hate** (👎) reactions using Material Design icons\r\n- Reaction buttons auto-injected on media detail pages\r\n- Community reactions list showing all user reactions\r\n- Aggregate reaction counts per item\r\n- Toggle behavior — click again to remove your reaction\r\n- JSON export from the plugin config page\r\n- Activity logging (toggleable in settings)\r\n\r\n### Installation\r\nAdd this repository in Jellyfin (**Dashboard → Plugins → Repositories → Add**): https://jamino.me/jellyfin-likelovehate/manifest.json\r\n\r\n### Compatibility\r\n- Jellyfin **10.11+**\r\n- .NET 9.0\n",
+        "targetAbi": "10.9.0.0",
+        "sourceUrl": "https://github.com/DrBiznes/jellyfin-likelovehate/releases/download/v1.0.0.0/likelovehate_1.0.0.0.zip",
+        "checksum": "4eefe9f800697d792ced5543f8a10571",
+        "timestamp": "2026-02-15T01:41:32Z"
+      }
+    ]
+  }
+]
