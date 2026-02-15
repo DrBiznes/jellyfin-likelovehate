@@ -9,12 +9,12 @@
     "imageUrl": "",
     "versions": [
       {
-        "version": "1.1.0.0",
-        "changelog": "## Changes\r\n- Auto-inject script into Jellyfin UI — no manual setup needed\r\n- Supports File Transformation plugin (preferred) with direct index.html fallback\r\n- JS now served from /LikeLoveHate/ClientScript API endpoint\r\n- Added InjectClientScript config toggle\n",
+        "version": "1.1.1.0",
+        "changelog": "### Bug Fixes\r\n- Fixed plugin version displaying as 0.0.0.0 in Jellyfin dashboard — assembly version now set correctly in the DLL\n",
         "targetAbi": "10.9.0.0",
-        "sourceUrl": "https://github.com/DrBiznes/jellyfin-likelovehate/releases/download/v1.1.0.0/likelovehate_1.1.0.0.zip",
-        "checksum": "66e6404218de3fd2f344f25e7c26bea9",
-        "timestamp": "2026-02-15T02:33:05Z"
+        "sourceUrl": "https://github.com/DrBiznes/jellyfin-likelovehate/releases/download/v1.1.1.0/likelovehate_1.1.1.0.zip",
+        "checksum": "4fe42641c9cc3942694c6dc84a858f59",
+        "timestamp": "2026-02-15T10:10:51Z"
       }
     ]
   }
