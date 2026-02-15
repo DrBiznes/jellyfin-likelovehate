@@ -8,15 +8,13 @@ namespace Jellyfin.Plugin.LikeLoveHate.Configuration;
 public class PluginConfiguration : BasePluginConfiguration
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="PluginConfiguration"/> class.
+    /// Gets or sets a value indicating whether the plugin should inject the
+    /// client-side script tag into jellyfin-web's index.html.
     /// </summary>
-    public PluginConfiguration()
-    {
-        EnableActivityLog = true;
-    }
+    public bool InjectClientScript { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets a value indicating whether reactions are logged to the activity log.
+    /// Gets or sets a value indicating whether to log reactions to the server log.
     /// </summary>
-    public bool EnableActivityLog { get; set; }
+    public bool EnableActivityLog { get; set; } = true;
 }

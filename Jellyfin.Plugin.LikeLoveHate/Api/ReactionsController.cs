@@ -1,10 +1,14 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Net.Mime;
+using System.Reflection;
 using System.Text.Json;
 using Jellyfin.Plugin.LikeLoveHate.Data;
 using Jellyfin.Plugin.LikeLoveHate.Models;
 using MediaBrowser.Common.Configuration;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -14,7 +18,7 @@ namespace Jellyfin.Plugin.LikeLoveHate.Api;
 /// API controller for user reactions (Like / Love / Hate).
 /// </summary>
 [ApiController]
-[Route("api/LikeLoveHate")]
+[Route("LikeLoveHate")]
 public class ReactionsController : ControllerBase
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -201,6 +205,41 @@ public class ReactionsController : ControllerBase
         {
             _logger.LogError(ex, "Error exporting reactions");
             return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Serves the client-side reactions script from embedded resources.
+    /// </summary>
+    /// <returns>JavaScript content.</returns>
+    [HttpGet("ClientScript")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Produces("application/javascript")]
+    public ActionResult GetClientScript()
+    {
+        try
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceName = "Jellyfin.Plugin.LikeLoveHate.ClientScript.reactions.js";
+
+            using Stream? stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+            {
+                _logger.LogWarning("LikeLoveHate: Embedded resource {Resource} not found", resourceName);
+                return NotFound("Client script not found");
+            }
+
+            using StreamReader reader = new StreamReader(stream);
+            var script = reader.ReadToEnd();
+
+            return Content(script, "application/javascript");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "LikeLoveHate: Error serving client script");
+            return StatusCode(500, "Error serving client script");
         }
     }
 }

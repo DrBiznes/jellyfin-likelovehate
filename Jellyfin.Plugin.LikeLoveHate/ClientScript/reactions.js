@@ -173,7 +173,7 @@
     // API helpers
     async function fetchReactions(itemId) {
         try {
-            var response = await fetch(ApiClient.getUrl('api/LikeLoveHate/Item/' + itemId), {
+            var response = await fetch(ApiClient.getUrl('LikeLoveHate/Item/' + itemId), {
                 headers: { 'X-Emby-Token': ApiClient.accessToken() }
             });
             return await response.json();
@@ -186,7 +186,7 @@
     async function fetchMyReaction(itemId) {
         try {
             var userId = ApiClient.getCurrentUserId();
-            var response = await fetch(ApiClient.getUrl('api/LikeLoveHate/MyReaction/' + itemId + '?userId=' + userId), {
+            var response = await fetch(ApiClient.getUrl('LikeLoveHate/MyReaction/' + itemId + '?userId=' + userId), {
                 headers: { 'X-Emby-Token': ApiClient.accessToken() }
             });
             return await response.json();
@@ -202,7 +202,7 @@
             var user = await ApiClient.getCurrentUser();
             var userName = user ? user.Name : 'Unknown';
             var url = ApiClient.getUrl(
-                'api/LikeLoveHate/React?itemId=' + itemId +
+                'LikeLoveHate/React?itemId=' + itemId +
                 '&userId=' + userId +
                 '&reaction=' + reactionType +
                 '&userName=' + encodeURIComponent(userName)
@@ -221,7 +221,7 @@
     async function removeReaction(itemId) {
         try {
             var userId = ApiClient.getCurrentUserId();
-            var url = ApiClient.getUrl('api/LikeLoveHate/Reaction?itemId=' + itemId + '&userId=' + userId);
+            var url = ApiClient.getUrl('LikeLoveHate/Reaction?itemId=' + itemId + '&userId=' + userId);
             var response = await fetch(url, {
                 method: 'DELETE',
                 headers: { 'X-Emby-Token': ApiClient.accessToken() }

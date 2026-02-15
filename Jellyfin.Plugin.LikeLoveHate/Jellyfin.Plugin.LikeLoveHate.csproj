@@ -28,8 +28,8 @@
   <ItemGroup>
     <None Remove="Configuration\configPage.html" />
     <EmbeddedResource Include="Configuration\configPage.html" />
-    <None Remove="Configuration\reactions.js" />
-    <EmbeddedResource Include="Configuration\reactions.js" />
+    <None Remove="ClientScript\reactions.js" />
+    <EmbeddedResource Include="ClientScript\reactions.js" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,7 @@
 ---
 name: "LikeLoveHate"
 guid: "a7b3c1d2-4e5f-6789-abcd-ef0123456789"
-version: "1.0.0.0"
+version: "1.1.0.0"
 targetAbi: "10.9.0.0"
 framework: "net9.0"
 overview: "React to media with Like, Love, or Hate"
@@ -14,4 +14,4 @@ owner: "DrBiznes"
 artifacts:
 - "Jellyfin.Plugin.LikeLoveHate.dll"
 changelog: >
-  Initial release with Like/Love/Hate reactions.
+  Auto script injection via File Transformation plugin or direct index.html injection.
