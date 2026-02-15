@@ -44,14 +44,12 @@ jobs:
           echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
 
       - name: Generate manifest.json
-        env:
-          RELEASE_BODY: ${{ github.event.release.body }}
         run: |
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           REPO_URL="https://github.com/${{ github.repository }}"
           TAG="${{ github.event.release.tag_name || steps.version.outputs.version }}"
           DOWNLOAD_URL="${REPO_URL}/releases/download/${TAG}/likelovehate_${{ steps.version.outputs.version }}.zip"
-          CHANGELOG=$(echo "$RELEASE_BODY" | jq -Rs '.')
+          CHANGELOG=$(echo '${{ github.event.release.body }}' | jq -Rs '.')
 
           cat > artifacts/manifest.json << EOF
           [
