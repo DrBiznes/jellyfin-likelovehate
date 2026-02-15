@@ -3,16 +3,88 @@ name: '🚀 Publish Plugin'
 on:
   release:
     types:
-      - released
+      - published
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
-  call:
-    uses: jellyfin/jellyfin-meta-plugins/.github/workflows/publish.yaml@master
-    with:
-      version: ${{ github.event.release.tag_name }}
-      is-unstable: ${{ github.event.release.prerelease }}
-    secrets:
-      deploy-host: ${{ secrets.DEPLOY_HOST }}
-      deploy-user: ${{ secrets.DEPLOY_USER }}
-      deploy-key: ${{ secrets.DEPLOY_KEY }}
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build Release
+        run: dotnet build Jellyfin.Plugin.LikeLoveHate.sln --configuration Release
+
+      - name: Get version from build.yaml
+        id: version
+        run: |
+          VERSION=$(grep 'version:' build.yaml | head -1 | awk '{print $2}' | tr -d '"')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create plugin zip
+        run: |
+          mkdir -p artifacts
+          cd Jellyfin.Plugin.LikeLoveHate/bin/Release/net9.0
+          zip -j ../../../../artifacts/likelovehate_${{ steps.version.outputs.version }}.zip Jellyfin.Plugin.LikeLoveHate.dll
+
+      - name: Generate MD5 checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(md5sum artifacts/likelovehate_${{ steps.version.outputs.version }}.zip | awk '{print $1}')
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+
+      - name: Generate manifest.json
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          REPO_URL="https://github.com/${{ github.repository }}"
+          TAG="${{ github.event.release.tag_name || steps.version.outputs.version }}"
+          DOWNLOAD_URL="${REPO_URL}/releases/download/${TAG}/likelovehate_${{ steps.version.outputs.version }}.zip"
+          CHANGELOG=$(echo '${{ github.event.release.body }}' | jq -Rs '.')
+
+          cat > artifacts/manifest.json << EOF
+          [
+            {
+              "guid": "a7b3c1d2-4e5f-6789-abcd-ef0123456789",
+              "name": "LikeLoveHate",
+              "overview": "React to media with Like, Love, or Hate",
+              "description": "Adds Like, Love, and Hate reaction buttons to media item detail pages using Material Design icons.",
+              "owner": "DrBiznes",
+              "category": "General",
+              "imageUrl": "",
+              "versions": [
+                {
+                  "version": "${{ steps.version.outputs.version }}",
+                  "changelog": $CHANGELOG,
+                  "targetAbi": "10.9.0.0",
+                  "sourceUrl": "${DOWNLOAD_URL}",
+                  "checksum": "${{ steps.checksum.outputs.checksum }}",
+                  "timestamp": "${TIMESTAMP}"
+                }
+              ]
+            }
+          ]
+          EOF
+
+      - name: Upload zip to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/likelovehate_${{ steps.version.outputs.version }}.zip
+
+      - name: Deploy manifest to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./artifacts
+          keep_files: false
+          destination_dir: .

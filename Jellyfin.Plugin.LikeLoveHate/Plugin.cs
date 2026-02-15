@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using Jellyfin.Plugin.Template.Configuration;
+using Jellyfin.Plugin.LikeLoveHate.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 
-namespace Jellyfin.Plugin.Template;
+namespace Jellyfin.Plugin.LikeLoveHate;
 
 /// <summary>
-/// The main plugin.
+/// The LikeLoveHate plugin — lets users react to media with Like, Love, or Hate.
 /// </summary>
 public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
@@ -26,10 +26,10 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     }
 
     /// <inheritdoc />
-    public override string Name => "Template";
+    public override string Name => "LikeLoveHate";
 
     /// <inheritdoc />
-    public override Guid Id => Guid.Parse("eb5d7894-8eef-4b36-aa6f-5d124e828ce1");
+    public override Guid Id => Guid.Parse("a7b3c1d2-4e5f-6789-abcd-ef0123456789");
 
     /// <summary>
     /// Gets the current plugin instance.
@@ -44,8 +44,13 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             new PluginPageInfo
             {
                 Name = Name,
-                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.configPage.html", GetType().Namespace)
-            }
+                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.configPage.html", GetType().Namespace),
+            },
+            new PluginPageInfo
+            {
+                Name = "reactions.js",
+                EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.reactions.js", GetType().Namespace),
+            },
         ];
     }
 }

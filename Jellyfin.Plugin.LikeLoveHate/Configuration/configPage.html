@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>LikeLoveHate</title>
+</head>
+<body>
+    <div id="LikeLoveHateConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <h1>LikeLoveHate Settings</h1>
+
+                <form id="LikeLoveHateConfigForm">
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableActivityLog" name="EnableActivityLog" type="checkbox" is="emby-checkbox" />
+                            <span>Log reactions to activity log</span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
+
+                <div class="verticalSection" style="margin-top: 2em;">
+                    <h2>Export Data</h2>
+                    <p>Download all reactions as a JSON file.</p>
+                    <a is="emby-button" class="raised button-submit block" href="/api/LikeLoveHate/Export" target="_blank">
+                        Export Reactions (JSON)
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var LikeLoveHateConfig = {
+            pluginUniqueId: 'a7b3c1d2-4e5f-6789-abcd-ef0123456789'
+        };
+
+        document.querySelector('#LikeLoveHateConfigPage')
+            .addEventListener('pageshow', function() {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(LikeLoveHateConfig.pluginUniqueId).then(function (config) {
+                    document.querySelector('#EnableActivityLog').checked = config.EnableActivityLog;
+                    Dashboard.hideLoadingMsg();
+                });
+            });
+
+        document.querySelector('#LikeLoveHateConfigForm')
+            .addEventListener('submit', function(e) {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(LikeLoveHateConfig.pluginUniqueId).then(function (config) {
+                    config.EnableActivityLog = document.querySelector('#EnableActivityLog').checked;
+                    ApiClient.updatePluginConfiguration(LikeLoveHateConfig.pluginUniqueId, config).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    });
+                });
+
+                e.preventDefault();
+                return false;
+            });
+    </script>
+</body>
+</html>
