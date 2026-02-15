@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
@@ -9,17 +8,17 @@ using System.Text.RegularExpressions;
 using Jellyfin.Plugin.LikeLoveHate.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
-using MediaBrowser.Controller;
 using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 
 namespace Jellyfin.Plugin.LikeLoveHate;
 
 /// <summary>
 /// The LikeLoveHate plugin — lets users react to media with Like, Love, or Hate.
-/// Uses File Transformation plugin if available, falls back to direct index.html injection.
+/// Uses File Transformation plugin to inject client-side script into index.html.
 /// </summary>
 public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
@@ -45,12 +44,15 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         {
             logger.LogInformation("{PluginName} plugin is initializing...", PluginName);
 
+            // Store config for the static callback
+            CachedBasePath = GetBasePath(configurationManager, logger);
+            CachedVersion = GetType().Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
+
             if (Configuration.InjectClientScript)
             {
-                if (!TryRegisterFileTransformation(configurationManager, logger))
+                if (!TryRegisterFileTransformation(logger))
                 {
-                    logger.LogInformation("{PluginName}: File Transformation plugin not available, using direct injection", PluginName);
-                    InjectScriptDirectly(applicationPaths, configurationManager, logger);
+                    logger.LogWarning("{PluginName}: File Transformation plugin not available — script injection will not work. Install the File Transformation plugin.", PluginName);
                 }
             }
 
@@ -66,6 +68,16 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// Gets the current plugin instance.
     /// </summary>
     public static Plugin? Instance { get; private set; }
+
+    /// <summary>
+    /// Gets the cached base URL path for use by the static callback.
+    /// </summary>
+    internal static string CachedBasePath { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the cached plugin version for use by the static callback.
+    /// </summary>
+    internal static string CachedVersion { get; private set; } = "0.0.0.0";
 
     /// <inheritdoc />
     public override string Name => PluginName;
@@ -87,9 +99,38 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     }
 
     /// <summary>
+    /// Static callback invoked by the File Transformation plugin via reflection.
+    /// Receives an object with a "Contents" property containing the HTML, returns transformed HTML.
+    /// </summary>
+    /// <param name="payload">Object with a Contents property containing the current index.html content.</param>
+    /// <returns>The transformed HTML with the LikeLoveHate script tag injected.</returns>
+    public static string TransformIndexHtml(TransformationCallbackPayload payload)
+    {
+        var html = payload.Contents ?? string.Empty;
+        var scriptElement = BuildScriptTag(CachedBasePath, CachedVersion);
+
+        if (html.Contains(scriptElement, StringComparison.Ordinal))
+        {
+            return html;
+        }
+
+        // Remove old versions of our script tag
+        html = Regex.Replace(html, @"<script plugin=""LikeLoveHate"".*?></script>", string.Empty);
+
+        int bodyClose = html.LastIndexOf("</body>", StringComparison.Ordinal);
+        if (bodyClose == -1)
+        {
+            return html;
+        }
+
+        html = html.Insert(bodyClose, scriptElement);
+        return html;
+    }
+
+    /// <summary>
     /// Attempts to register transformation with File Transformation plugin via reflection.
     /// </summary>
-    private bool TryRegisterFileTransformation(IServerConfigurationManager configurationManager, ILogger<Plugin> logger)
+    private bool TryRegisterFileTransformation(ILogger<Plugin> logger)
     {
         try
         {
@@ -117,13 +158,17 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 return false;
             }
 
-            var basePath = GetBasePath(configurationManager, logger);
-            var version = GetType().Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
+            // Build the JObject payload that RegisterTransformation expects
+            var payload = new JObject
+            {
+                ["id"] = Id.ToString(),
+                ["fileNamePattern"] = "index.html",
+                ["callbackAssembly"] = GetType().Assembly.FullName,
+                ["callbackClass"] = typeof(Plugin).FullName,
+                ["callbackMethod"] = nameof(TransformIndexHtml),
+            };
 
-            Func<object, string> transformCallback = (payload) =>
-                TransformHtml(payload, basePath, version, logger);
-
-            registerMethod.Invoke(null, new object[] { "index.html", transformCallback });
+            registerMethod.Invoke(null, new object[] { payload });
 
             logger.LogInformation("{PluginName}: Registered with File Transformation plugin", PluginName);
             return true;
@@ -132,107 +177,6 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         {
             logger.LogWarning(ex, "{PluginName}: Failed to register with File Transformation plugin", PluginName);
             return false;
-        }
-    }
-
-    /// <summary>
-    /// Transformation callback for File Transformation plugin.
-    /// </summary>
-    private string TransformHtml(object payload, string basePath, string version, ILogger<Plugin> logger)
-    {
-        try
-        {
-            var contentsProperty = payload.GetType().GetProperty("Contents");
-            if (contentsProperty == null)
-            {
-                return string.Empty;
-            }
-
-            var html = contentsProperty.GetValue(payload)?.ToString() ?? string.Empty;
-            var scriptElement = BuildScriptTag(basePath, version);
-
-            if (html.Contains(scriptElement, StringComparison.Ordinal))
-            {
-                return html;
-            }
-
-            // Remove old versions of our script tag
-            html = Regex.Replace(html, @"<script plugin=""LikeLoveHate"".*?></script>", string.Empty);
-
-            int bodyClose = html.LastIndexOf("</body>", StringComparison.Ordinal);
-            if (bodyClose == -1)
-            {
-                return html;
-            }
-
-            html = html.Insert(bodyClose, scriptElement);
-            logger.LogDebug("{PluginName}: Transformed index.html via File Transformation", PluginName);
-            return html;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "{PluginName}: Error during HTML transformation", PluginName);
-            var contentsProperty = payload.GetType().GetProperty("Contents");
-            return contentsProperty?.GetValue(payload)?.ToString() ?? string.Empty;
-        }
-    }
-
-    /// <summary>
-    /// Direct injection fallback — writes script tag to index.html on disk.
-    /// </summary>
-    private void InjectScriptDirectly(
-        IApplicationPaths applicationPaths,
-        IServerConfigurationManager configurationManager,
-        ILogger<Plugin> logger)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(applicationPaths.WebPath))
-            {
-                logger.LogWarning("{PluginName}: WebPath is not available", PluginName);
-                return;
-            }
-
-            var indexFile = Path.Combine(applicationPaths.WebPath, "index.html");
-            if (!File.Exists(indexFile))
-            {
-                logger.LogWarning("{PluginName}: index.html not found at {Path}", PluginName, indexFile);
-                return;
-            }
-
-            var basePath = GetBasePath(configurationManager, logger);
-            var version = GetType().Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
-            var scriptElement = BuildScriptTag(basePath, version);
-
-            string html = File.ReadAllText(indexFile);
-
-            if (html.Contains(scriptElement, StringComparison.Ordinal))
-            {
-                logger.LogInformation("{PluginName}: Script already injected", PluginName);
-                return;
-            }
-
-            // Remove old versions of our script tag
-            html = Regex.Replace(html, @"<script plugin=""LikeLoveHate"".*?></script>", string.Empty);
-
-            int bodyClose = html.LastIndexOf("</body>", StringComparison.Ordinal);
-            if (bodyClose == -1)
-            {
-                logger.LogWarning("{PluginName}: Could not find </body> in index.html", PluginName);
-                return;
-            }
-
-            html = html.Insert(bodyClose, scriptElement);
-            File.WriteAllText(indexFile, html);
-            logger.LogInformation("{PluginName}: Script injected into index.html directly", PluginName);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogError(ex, "{PluginName}: Permission denied writing to index.html", PluginName);
-        }
-        catch (IOException ex)
-        {
-            logger.LogError(ex, "{PluginName}: I/O error writing to index.html", PluginName);
         }
     }
 
