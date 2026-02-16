@@ -9,12 +9,12 @@
     "imageUrl": "",
     "versions": [
       {
-        "version": "1.2.2.1",
-        "changelog": "please work\n",
+        "version": "1.2.3.0",
+        "changelog": "Fixed item ID detection for Jellyfin 10.11+ (32-char hex IDs).\r\nReaction buttons now appear in header row and video player OSD.\r\nConsistent button order (Love, Like, Hate) across all locations.\r\nConfigurable reaction colors in plugin settings.\n",
         "targetAbi": "10.9.0.0",
-        "sourceUrl": "https://github.com/DrBiznes/jellyfin-likelovehate/releases/download/v1.2.2.1/likelovehate_1.2.2.1.zip",
-        "checksum": "551169adae7aa42ed5457c046b344ac7",
-        "timestamp": "2026-02-16T03:43:10Z"
+        "sourceUrl": "https://github.com/DrBiznes/jellyfin-likelovehate/releases/download/v1.2.3.0/likelovehate_1.2.3.0.zip",
+        "checksum": "baa8c10f3ed69faa8ea7fa772877e9ea",
+        "timestamp": "2026-02-16T05:51:09Z"
       }
     ]
   }
