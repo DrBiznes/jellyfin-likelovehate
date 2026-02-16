@@ -188,6 +188,24 @@ public class ReactionsController : ControllerBase
     }
 
     /// <summary>
+    /// Get the configured reaction colors.
+    /// </summary>
+    /// <returns>JSON with likeColor, loveColor, hateColor.</returns>
+    [HttpGet("Colors")]
+    [AllowAnonymous]
+    [Produces(MediaTypeNames.Application.Json)]
+    public ActionResult GetColors()
+    {
+        var config = Plugin.Instance?.Configuration;
+        return Ok(new
+        {
+            likeColor = config?.LikeColor ?? "#4fc3f7",
+            loveColor = config?.LoveColor ?? "#e040fb",
+            hateColor = config?.HateColor ?? "#ef5350",
+        });
+    }
+
+    /// <summary>
     /// Export all reactions as JSON.
     /// </summary>
     /// <returns>JSON file download.</returns>

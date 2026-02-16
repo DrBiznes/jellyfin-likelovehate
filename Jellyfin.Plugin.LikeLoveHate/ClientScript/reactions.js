@@ -9,7 +9,7 @@
     materialLink.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0';
     document.head.appendChild(materialLink);
 
-    // Reaction definitions
+    // Reaction definitions (colors updated from server config)
     var REACTIONS = {
         1: { name: 'Like', icon: 'thumb_up', color: '#4fc3f7' },
         2: { name: 'Love', icon: 'thumb_up', color: '#e040fb', double: true },
@@ -20,6 +20,26 @@
     var currentItemId = null;
     var currentReaction = 0;
     var isInjecting = false;
+    var colorsLoaded = false;
+
+    // Fetch configured colors from server
+    async function fetchColors() {
+        if (colorsLoaded) return;
+        try {
+            var response = await fetch(ApiClient.getUrl('LikeLoveHate/Colors'), {
+                headers: { 'X-Emby-Token': ApiClient.accessToken() }
+            });
+            var colors = await response.json();
+            if (colors.likeColor) REACTIONS[1].color = colors.likeColor;
+            if (colors.loveColor) REACTIONS[2].color = colors.loveColor;
+            if (colors.hateColor) REACTIONS[3].color = colors.hateColor;
+            colorsLoaded = true;
+            console.log('[LikeLoveHate] Colors loaded:', colors);
+        } catch (error) {
+            console.warn('[LikeLoveHate] Could not load colors, using defaults:', error);
+            colorsLoaded = true;
+        }
+    }
 
     // Track all synced button sets
     var headerButtons = {};   // { 1: btn, 2: btn, 3: btn }
@@ -674,6 +694,14 @@
 
         if (!itemId) {
             injectionAttempts = 0;
+            return;
+        }
+
+        // Ensure colors are loaded before rendering anything
+        if (!colorsLoaded) {
+            fetchColors().then(function () {
+                injectReactionsUI();
+            });
             return;
         }
 

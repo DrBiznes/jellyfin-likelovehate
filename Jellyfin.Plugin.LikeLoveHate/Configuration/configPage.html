@@ -1,11 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <title>LikeLoveHate</title>
+    <style>
+        .llh-color-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5em;
+            margin: 1.5em 0;
+        }
+
+        .llh-color-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1.2em;
+            text-align: center;
+        }
+
+        .llh-color-card label {
+            display: block;
+            font-weight: 600;
+            font-size: 1em;
+            margin-bottom: 0.75em;
+            color: #fff;
+        }
+
+        .llh-color-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75em;
+            justify-content: center;
+        }
+
+        .llh-color-input {
+            width: 48px;
+            height: 48px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 2px;
+            background: transparent;
+        }
+
+        .llh-color-input::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        .llh-color-input::-webkit-color-swatch {
+            border: none;
+            border-radius: 5px;
+        }
+
+        .llh-hex-input {
+            width: 90px;
+            padding: 0.4em 0.6em;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-family: monospace;
+            font-size: 0.95em;
+            text-align: center;
+        }
+
+        .llh-color-preview {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 1.2em;
+        }
+
+        .llh-section-title {
+            font-size: 1.15em;
+            font-weight: 600;
+            margin-top: 2em;
+            margin-bottom: 0.5em;
+            color: #fff;
+        }
+
+        .llh-reset-btn {
+            margin-top: 0.75em;
+            font-size: 0.85em;
+            opacity: 0.6;
+            cursor: pointer;
+            background: none;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ccc;
+            padding: 0.3em 0.8em;
+            border-radius: 4px;
+        }
+
+        .llh-reset-btn:hover {
+            opacity: 1;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
 </head>
+
 <body>
-    <div id="LikeLoveHateConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+    <div id="LikeLoveHateConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+        data-require="emby-input,emby-button,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
                 <h1>LikeLoveHate Settings</h1>
@@ -18,7 +118,43 @@
                         </label>
                     </div>
 
-                    <div>
+                    <div class="llh-section-title">Reaction Colors</div>
+                    <p style="color: rgba(255,255,255,0.6); margin-bottom: 1em; font-size: 0.9em;">
+                        Customize the highlight color for each reaction button. Changes apply to all users.
+                    </p>
+
+                    <div class="llh-color-grid">
+                        <div class="llh-color-card">
+                            <label>👍 Like</label>
+                            <div class="llh-color-row">
+                                <input id="LikeColor" type="color" class="llh-color-input" value="#4fc3f7" />
+                                <input id="LikeColorHex" type="text" class="llh-hex-input" value="#4fc3f7"
+                                    maxlength="7" />
+                            </div>
+                        </div>
+                        <div class="llh-color-card">
+                            <label>👍👍 Love</label>
+                            <div class="llh-color-row">
+                                <input id="LoveColor" type="color" class="llh-color-input" value="#e040fb" />
+                                <input id="LoveColorHex" type="text" class="llh-hex-input" value="#e040fb"
+                                    maxlength="7" />
+                            </div>
+                        </div>
+                        <div class="llh-color-card">
+                            <label>👎 Hate</label>
+                            <div class="llh-color-row">
+                                <input id="HateColor" type="color" class="llh-color-input" value="#ef5350" />
+                                <input id="HateColorHex" type="text" class="llh-hex-input" value="#ef5350"
+                                    maxlength="7" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <button type="button" class="llh-reset-btn" id="ResetColorsBtn">Reset to Defaults</button>
+                    </div>
+
+                    <div style="margin-top: 1.5em;">
                         <button is="emby-button" type="submit" class="raised button-submit block emby-button">
                             <span>Save</span>
                         </button>
@@ -28,7 +164,8 @@
                 <div class="verticalSection" style="margin-top: 2em;">
                     <h2>Export Data</h2>
                     <p>Download all reactions as a JSON file.</p>
-                    <a is="emby-button" class="raised button-submit block" href="/api/LikeLoveHate/Export" target="_blank">
+                    <a is="emby-button" class="raised button-submit block" href="/api/LikeLoveHate/Export"
+                        target="_blank">
                         Export Reactions (JSON)
                     </a>
                 </div>
@@ -38,23 +175,74 @@
 
     <script type="text/javascript">
         var LikeLoveHateConfig = {
-            pluginUniqueId: 'a7b3c1d2-4e5f-6789-abcd-ef0123456789'
+            pluginUniqueId: 'a7b3c1d2-4e5f-6789-abcd-ef0123456789',
+            defaults: {
+                LikeColor: '#4fc3f7',
+                LoveColor: '#e040fb',
+                HateColor: '#ef5350'
+            }
         };
 
+        // Sync color picker <-> hex text input
+        function syncColorInputs(colorId) {
+            var picker = document.querySelector('#' + colorId);
+            var hex = document.querySelector('#' + colorId + 'Hex');
+            if (!picker || !hex) return;
+
+            picker.addEventListener('input', function () {
+                hex.value = picker.value;
+            });
+
+            hex.addEventListener('input', function () {
+                var val = hex.value;
+                if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+                    picker.value = val;
+                }
+            });
+        }
+
+        syncColorInputs('LikeColor');
+        syncColorInputs('LoveColor');
+        syncColorInputs('HateColor');
+
+        // Reset button
+        document.querySelector('#ResetColorsBtn').addEventListener('click', function () {
+            var d = LikeLoveHateConfig.defaults;
+            ['Like', 'Love', 'Hate'].forEach(function (name) {
+                var key = name + 'Color';
+                document.querySelector('#' + key).value = d[key];
+                document.querySelector('#' + key + 'Hex').value = d[key];
+            });
+        });
+
+        // Load config
         document.querySelector('#LikeLoveHateConfigPage')
-            .addEventListener('pageshow', function() {
+            .addEventListener('pageshow', function () {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(LikeLoveHateConfig.pluginUniqueId).then(function (config) {
                     document.querySelector('#EnableActivityLog').checked = config.EnableActivityLog;
+
+                    ['Like', 'Love', 'Hate'].forEach(function (name) {
+                        var key = name + 'Color';
+                        var val = config[key] || LikeLoveHateConfig.defaults[key];
+                        document.querySelector('#' + key).value = val;
+                        document.querySelector('#' + key + 'Hex').value = val;
+                    });
+
                     Dashboard.hideLoadingMsg();
                 });
             });
 
+        // Save config
         document.querySelector('#LikeLoveHateConfigForm')
-            .addEventListener('submit', function(e) {
+            .addEventListener('submit', function (e) {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(LikeLoveHateConfig.pluginUniqueId).then(function (config) {
                     config.EnableActivityLog = document.querySelector('#EnableActivityLog').checked;
+                    config.LikeColor = document.querySelector('#LikeColor').value;
+                    config.LoveColor = document.querySelector('#LoveColor').value;
+                    config.HateColor = document.querySelector('#HateColor').value;
+
                     ApiClient.updatePluginConfiguration(LikeLoveHateConfig.pluginUniqueId, config).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
                     });
@@ -65,4 +253,5 @@
             });
     </script>
 </body>
+
 </html>
