@@ -702,24 +702,73 @@
 
     // ─── Item ID detection ─────────────────────────────────────────────────
 
+    var lastIdDebugLog = 0;
+
     function getItemId() {
         var itemId = null;
+        var href = window.location.href;
+
+        // Method 1: Query string ?id=xxx
         var urlParams = new URLSearchParams(window.location.search);
         itemId = urlParams.get('id');
-
-        if (!itemId && window.location.hash.indexOf('?') !== -1) {
-            var hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
-            itemId = hashParams.get('id');
+        if (itemId) {
+            console.log('[LikeLoveHate] ID found via query string:', itemId);
+            return itemId;
         }
 
-        if (!itemId) {
-            var guidMatch = window.location.href.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
-            if (guidMatch) {
-                itemId = guidMatch[1];
+        // Method 2: Hash params #!/details?id=xxx or #/details?id=xxx
+        if (window.location.hash.indexOf('?') !== -1) {
+            var hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
+            itemId = hashParams.get('id');
+            if (itemId) {
+                console.log('[LikeLoveHate] ID found via hash params:', itemId);
+                return itemId;
             }
         }
 
-        return itemId;
+        // Method 3: Standard GUID with dashes in URL
+        var guidMatch = href.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+        if (guidMatch) {
+            console.log('[LikeLoveHate] ID found via GUID regex:', guidMatch[1]);
+            return guidMatch[1];
+        }
+
+        // Method 4: Jellyfin 10.11+ uses 32-char hex IDs without dashes
+        // Match id= parameter anywhere in the URL (including hash)
+        var idParamMatch = href.match(/[?&]id=([a-f0-9]{32})/i);
+        if (idParamMatch) {
+            console.log('[LikeLoveHate] ID found via id= param (hex32):', idParamMatch[1]);
+            return idParamMatch[1];
+        }
+
+        // Method 5: Look for 32-char hex in URL path segments
+        // e.g. /web/index.html#!/details?id=997d089bab0ed34edb8e229cae631e49
+        // or /web/#/items/997d089bab0ed34edb8e229cae631e49
+        var hex32Match = href.match(/\/([a-f0-9]{32})(?:[?&#/]|$)/i);
+        if (hex32Match) {
+            console.log('[LikeLoveHate] ID found via path hex32:', hex32Match[1]);
+            return hex32Match[1];
+        }
+
+        // Method 6: Try extracting from the page's data attributes
+        var detailPage = document.querySelector('[data-id]');
+        if (detailPage) {
+            itemId = detailPage.getAttribute('data-id');
+            if (itemId) {
+                console.log('[LikeLoveHate] ID found via data-id attribute:', itemId);
+                return itemId;
+            }
+        }
+
+        // Debug: log URL info (throttled to avoid spam)
+        var now = Date.now();
+        if (now - lastIdDebugLog > 10000) {
+            lastIdDebugLog = now;
+            console.log('[LikeLoveHate] Could not find item ID in URL:', href);
+            console.log('[LikeLoveHate] search:', window.location.search, 'hash:', window.location.hash);
+        }
+
+        return null;
     }
 
     // ─── Cleanup ───────────────────────────────────────────────────────────
