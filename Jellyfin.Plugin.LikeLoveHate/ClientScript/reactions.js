@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    console.log('[LikeLoveHate] Loading plugin...');
+    console.log('[LikeLoveHate] Loading plugin v1.2.1.1...');
 
     // Load Google Material Symbols font (filled variant for active states)
     var materialLink = document.createElement('link');
@@ -21,9 +21,9 @@
     var currentReaction = 0;
     var isInjecting = false;
     var colorsLoaded = false;
-    var osdContainerLoaded = false;
 
     // Track all synced button sets
+    var headerButtons = {};   // { 1: element, 2: element, 3: element }
     var osdButtons = {};      // { 1: element, 2: element, 3: element }
     var panelButtons = {};    // { 1: { btn, count }, 2: ..., 3: ... }
 
@@ -49,6 +49,41 @@
     // ─── CSS ───────────────────────────────────────────────────────────────
     var style = document.createElement('style');
     style.textContent = [
+        /* ── Detail page header icon buttons ─────────────────── */
+        '.llh-header-btn {',
+        '    position: relative;',
+        '    transition: all 0.2s ease;',
+        '}',
+        '.llh-header-btn .detailButton-icon {',
+        '    transition: color 0.2s ease;',
+        '}',
+        '.llh-header-btn.llh-active .detailButton-icon {',
+        '    color: var(--llh-color) !important;',
+        '}',
+        '.llh-header-btn:hover .detailButton-icon {',
+        '    color: var(--llh-color) !important;',
+        '    opacity: 0.8;',
+        '}',
+        /* Love double-icon for header */
+        '.llh-header-love {',
+        '    display: inline-flex;',
+        '    position: relative;',
+        '    width: 24px;',
+        '    height: 24px;',
+        '}',
+        '.llh-header-love .detailButton-icon {',
+        '    font-size: 18px !important;',
+        '    position: absolute !important;',
+        '}',
+        '.llh-header-love .detailButton-icon:first-child {',
+        '    top: 3px;',
+        '    left: -2px;',
+        '}',
+        '.llh-header-love .detailButton-icon:last-child {',
+        '    top: -1px;',
+        '    left: 5px;',
+        '}',
+
         /* ── Video player OSD icon buttons ───────────────────── */
         '.llh-osd-btn {',
         '    transition: all 0.2s ease;',
@@ -300,6 +335,7 @@
     // ─── Reaction click handler (shared by all locations) ──────────────────
 
     async function handleReactionClick(itemId, type) {
+        console.log('[LikeLoveHate] Reaction clicked:', type, 'on item:', itemId, 'current:', currentReaction);
         if (currentReaction === type) {
             await removeReaction(itemId);
             currentReaction = 0;
@@ -313,6 +349,18 @@
     // ─── Sync all button states ────────────────────────────────────────────
 
     function syncButtonStates() {
+        // Sync header buttons
+        [1, 2, 3].forEach(function (type) {
+            var btn = headerButtons[type];
+            if (btn) {
+                if (currentReaction === type) {
+                    btn.classList.add('llh-active');
+                } else {
+                    btn.classList.remove('llh-active');
+                }
+            }
+        });
+
         // Sync OSD buttons
         [1, 2, 3].forEach(function (type) {
             var btn = osdButtons[type];
@@ -359,9 +407,81 @@
         }
     }
 
-    // ─── OSD buttons (video player) ────────────────────────────────────────
+    // ─── Header buttons (detail page, next to favorite/trailer) ────────────
+    // Uses insertAdjacentHTML for proper custom element registration
+
+    function getHeaderButtonHTML(type) {
+        var def = REACTIONS[type];
+        var activeClass = (currentReaction === type) ? ' llh-active' : '';
+        var id = 'llh-header-' + type;
+
+        var iconHTML;
+        if (def.double) {
+            iconHTML = '<span class="llh-header-love">' +
+                '<span class="material-icons detailButton-icon" aria-hidden="true">thumb_up</span>' +
+                '<span class="material-icons detailButton-icon" aria-hidden="true">thumb_up</span>' +
+                '</span>';
+        } else {
+            iconHTML = '<span class="material-icons detailButton-icon" aria-hidden="true">' + def.icon + '</span>';
+        }
+
+        return '<button is="emby-button" type="button" class="button-flat detailButton llh-header-btn' + activeClass + '" ' +
+            'style="--llh-color:' + def.color + '" title="' + def.name + '" id="' + id + '">' +
+            '<div class="detailButton-content">' + iconHTML + '</div>' +
+            '</button>';
+    }
+
+    function isHeaderButtonsCreated() {
+        return document.getElementById('llh-header-1') !== null;
+    }
+
+    function createHeaderButtons(itemId) {
+        var container = document.querySelector('.mainDetailButtons');
+        if (!container) {
+            console.log('[LikeLoveHate] Header: .mainDetailButtons not found');
+            return false;
+        }
+
+        if (isHeaderButtonsCreated()) {
+            return true;
+        }
+
+        // Find the More button (three-dot menu) to insert before
+        var moreBtn = container.querySelector('.btnMoreCommands');
+        if (!moreBtn) {
+            console.log('[LikeLoveHate] Header: .btnMoreCommands not found, trying other anchors');
+        }
+
+        // Insert buttons: Love, Like, Hate (reverse order since we insert before same anchor)
+        var types = [3, 1, 2];
+
+        types.forEach(function (type) {
+            var html = getHeaderButtonHTML(type);
+            if (moreBtn) {
+                moreBtn.insertAdjacentHTML('beforebegin', html);
+            } else {
+                container.insertAdjacentHTML('beforeend', html);
+            }
+        });
+
+        // Attach click handlers
+        [1, 2, 3].forEach(function (type) {
+            var btn = document.getElementById('llh-header-' + type);
+            if (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    handleReactionClick(itemId, type);
+                });
+                headerButtons[type] = btn;
+            }
+        });
+
+        console.log('[LikeLoveHate] Header buttons injected successfully');
+        return true;
+    }
+
+    // ─── OSD buttons (video player bottom bar) ─────────────────────────────
     // Uses insertAdjacentHTML approach from InPlayerEpisodePreview plugin
-    // so the is="paper-icon-button-light" custom element registers properly.
 
     function getOsdButtonHTML(type) {
         var def = REACTIONS[type];
@@ -384,106 +504,88 @@
     }
 
     function isOsdButtonsCreated() {
-        var container = document.querySelector('.buttons');
-        return container && container.querySelector('#llh-osd-1') !== null;
+        return document.getElementById('llh-osd-1') !== null;
     }
 
     function createOsdButtons(itemId) {
-        // Use .buttons directly (proven approach from InPlayerEpisodePreview)
-        var buttonsContainer = document.querySelector('.buttons');
+        console.log('[LikeLoveHate] OSD: Attempting injection...');
+
+        // Look specifically in the videoOsdBottom area
+        var videoOsd = document.querySelector('.videoOsdBottom');
+        if (!videoOsd) {
+            console.log('[LikeLoveHate] OSD: .videoOsdBottom not found');
+            return false;
+        }
+
+        var buttonsContainer = videoOsd.querySelector('.buttons');
         if (!buttonsContainer) {
-            console.log('[LikeLoveHate] OSD .buttons container not found');
+            console.log('[LikeLoveHate] OSD: .buttons inside videoOsdBottom not found');
             return false;
         }
 
         if (isOsdButtonsCreated()) {
-            console.log('[LikeLoveHate] OSD buttons already exist');
+            console.log('[LikeLoveHate] OSD: buttons already exist, skipping');
             return true;
         }
 
-        // Find the parent element (same approach as InPlayerEpisodePreview)
-        var parent = buttonsContainer.lastElementChild
-            ? buttonsContainer.lastElementChild.parentElement
-            : buttonsContainer;
+        console.log('[LikeLoveHate] OSD: Found buttons container with', buttonsContainer.children.length, 'children');
 
-        // Find the position: after favorite button (btnUserRating)
-        var insertAfterIndex = Array.from(parent.children).findIndex(function (child) {
-            return child.classList.contains('btnUserRating');
+        // Log all children for debugging
+        Array.from(buttonsContainer.children).forEach(function (child, i) {
+            console.log('[LikeLoveHate] OSD child[' + i + ']:', child.tagName, child.className);
         });
 
-        // Fallback: after the time text
-        if (insertAfterIndex === -1) {
-            insertAfterIndex = Array.from(parent.children).findIndex(function (child) {
-                return child.classList.contains('osdTimeText');
-            });
+        // Find the favorite button to insert after
+        var insertAfterElement = null;
+        var children = Array.from(buttonsContainer.children);
+
+        // Try various anchors in order of preference
+        var anchorSelectors = ['.btnUserRating', '.osdTimeText', '.btnSubtitles', '.btnAudio'];
+        for (var i = 0; i < anchorSelectors.length; i++) {
+            insertAfterElement = buttonsContainer.querySelector(anchorSelectors[i]);
+            if (insertAfterElement) {
+                console.log('[LikeLoveHate] OSD: Found anchor:', anchorSelectors[i]);
+                break;
+            }
         }
-
-        console.log('[LikeLoveHate] Inserting OSD buttons after index:', insertAfterIndex);
-
-        // Build all 3 button HTML strings: Love, Like, Hate
-        // Insert in reverse order since we use insertAdjacentHTML('afterend',...)
-        // so the final order is: Love, Like, Hate
-        var types = [3, 1, 2]; // Reverse of desired order [2, 1, 3]
-
-        var insertAfterElement = (insertAfterIndex >= 0 && insertAfterIndex < parent.children.length)
-            ? parent.children[insertAfterIndex]
-            : parent.lastElementChild;
 
         if (!insertAfterElement) {
-            console.warn('[LikeLoveHate] No element to insert OSD buttons after');
+            // Fallback: use the last child
+            insertAfterElement = buttonsContainer.lastElementChild;
+            console.log('[LikeLoveHate] OSD: No anchor found, using last child');
+        }
+
+        if (!insertAfterElement) {
+            console.warn('[LikeLoveHate] OSD: Container is empty, cannot inject');
             return false;
         }
+
+        // Insert buttons in reverse desired order since afterend stacks them
+        // Desired visual order: Love, Like, Hate
+        var types = [3, 1, 2];
 
         types.forEach(function (type) {
             insertAfterElement.insertAdjacentHTML('afterend', getOsdButtonHTML(type));
         });
 
-        // Attach click handlers to the newly inserted buttons
+        // Attach click handlers
         [1, 2, 3].forEach(function (type) {
             var btn = document.getElementById('llh-osd-' + type);
             if (btn) {
                 btn.addEventListener('click', function (e) {
                     e.stopPropagation();
+                    e.preventDefault();
                     handleReactionClick(itemId, type);
                 });
                 osdButtons[type] = btn;
+                console.log('[LikeLoveHate] OSD: Button ' + type + ' handler attached');
+            } else {
+                console.warn('[LikeLoveHate] OSD: Could not find button for type ' + type);
             }
         });
 
-        console.log('[LikeLoveHate] OSD buttons injected successfully');
+        console.log('[LikeLoveHate] OSD: All buttons injected successfully');
         return true;
-    }
-
-    function attemptLoadOsdButtons(itemId, retryCount) {
-        retryCount = retryCount || 0;
-        var maxRetries = 3;
-        var routeChangeDelay = 1500;
-
-        // Only inject on video playback pages
-        var path = window.location.href;
-        var isVideoPage = path.indexOf('/video') !== -1 ||
-            path.indexOf('videoosd') !== -1 ||
-            document.querySelector('.videoOsdBottom') !== null;
-
-        if (!isVideoPage) return;
-
-        if (isOsdButtonsCreated()) return;
-
-        setTimeout(function () {
-            if (isOsdButtonsCreated()) return;
-
-            var buttonsContainer = document.querySelector('.buttons');
-            if (buttonsContainer && !osdContainerLoaded) {
-                if (createOsdButtons(itemId)) {
-                    osdContainerLoaded = true;
-                }
-            } else if (retryCount < maxRetries) {
-                console.log('[LikeLoveHate] OSD retry ' + (retryCount + 1) + '/' + maxRetries);
-                setTimeout(function () {
-                    attemptLoadOsdButtons(itemId, retryCount + 1);
-                }, 5000);
-            }
-        }, routeChangeDelay);
     }
 
     // ─── Detail panel (Reactions section on movie/show page) ───────────────
@@ -598,10 +700,7 @@
         });
     }
 
-    // ─── Injection logic ───────────────────────────────────────────────────
-
-    var injectionAttempts = 0;
-    var maxInjectionAttempts = 30;
+    // ─── Item ID detection ─────────────────────────────────────────────────
 
     function getItemId() {
         var itemId = null;
@@ -623,14 +722,32 @@
         return itemId;
     }
 
-    function cleanupOsdButtons() {
+    // ─── Cleanup ───────────────────────────────────────────────────────────
+
+    function cleanupAllButtons() {
+        // Remove header buttons
+        [1, 2, 3].forEach(function (type) {
+            var btn = document.getElementById('llh-header-' + type);
+            if (btn) btn.remove();
+        });
+        headerButtons = {};
+
+        // Remove OSD buttons
         [1, 2, 3].forEach(function (type) {
             var btn = document.getElementById('llh-osd-' + type);
             if (btn) btn.remove();
         });
         osdButtons = {};
-        osdContainerLoaded = false;
+
+        panelButtons = {};
     }
+
+    // ─── Main injection logic ──────────────────────────────────────────────
+    // IMPORTANT: Detail panel, header buttons, and OSD buttons are ALL
+    // injected independently. OSD does NOT depend on the detail panel.
+
+    var injectionAttempts = 0;
+    var maxInjectionAttempts = 30;
 
     function injectReactionsUI() {
         if (isInjecting) return;
@@ -652,15 +769,16 @@
 
         // Item changed — clean up old UI
         if (currentItemId !== itemId) {
+            console.log('[LikeLoveHate] Item changed:', currentItemId, '->', itemId);
             var existingUI = document.getElementById('llh-reactions-ui');
             if (existingUI) existingUI.remove();
-            cleanupOsdButtons();
-            panelButtons = {};
+            cleanupAllButtons();
             currentReaction = 0;
             currentItemId = itemId;
+            injectionAttempts = 0;
         }
 
-        // ── Inject detail panel ──
+        // ── 1. Inject detail panel (only on detail pages) ──
         var existingPanel = document.getElementById('llh-reactions-ui');
         if (!existingPanel) {
             var targetContainer = document.querySelector('.detailPagePrimaryContent .detailSection');
@@ -680,55 +798,47 @@
                 createReactionsPanel(itemId).then(function (ui) {
                     targetContainer.appendChild(ui);
                     isInjecting = false;
+                    console.log('[LikeLoveHate] Detail panel injected');
+                    // Now try header buttons too
+                    createHeaderButtons(itemId);
                 });
                 return;
-            } else if (injectionAttempts < maxInjectionAttempts) {
+            }
+            // Don't block other injection on panel failure - just retry silently
+            if (injectionAttempts < maxInjectionAttempts) {
                 injectionAttempts++;
-                var retryDelay = Math.min(100 * Math.pow(1.5, injectionAttempts), 3000);
-                setTimeout(injectReactionsUI, retryDelay);
-                return;
-            } else {
-                injectionAttempts = 0;
-                return;
             }
         }
 
-        // ── Attempt OSD button injection if video player is active ──
+        // ── 2. Inject header buttons (detail page, independent of panel) ──
+        if (!isHeaderButtonsCreated()) {
+            createHeaderButtons(itemId);
+        }
+
+        // ── 3. Inject OSD buttons (video player, completely independent) ──
         if (!isOsdButtonsCreated()) {
-            attemptLoadOsdButtons(itemId);
-        }
-    }
-
-    // ─── Route change detection ────────────────────────────────────────────
-    // Reset OSD state when navigating away from video player
-    var lastUrl = window.location.href;
-
-    function onRouteChange() {
-        var newUrl = window.location.href;
-        if (newUrl !== lastUrl) {
-            lastUrl = newUrl;
-            osdContainerLoaded = false;
-
-            // If we left the video player, clean up OSD buttons
-            var isVideoPage = newUrl.indexOf('/video') !== -1 ||
-                newUrl.indexOf('videoosd') !== -1;
-            if (!isVideoPage) {
-                cleanupOsdButtons();
+            var videoOsd = document.querySelector('.videoOsdBottom');
+            if (videoOsd) {
+                createOsdButtons(itemId);
             }
         }
     }
 
-    // ─── Observer for navigation changes ───────────────────────────────────
+    // ─── Observer for navigation/DOM changes ───────────────────────────────
 
+    var debounceTimer = null;
     var observer = new MutationObserver(function () {
-        onRouteChange();
-        injectReactionsUI();
+        // Debounce to avoid excessive calls from rapid DOM mutations
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(injectReactionsUI, 250);
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Initial check + periodic fallback
+    // Initial check + periodic fallback (catches cases the observer misses)
     setTimeout(injectReactionsUI, 1000);
-    setInterval(injectReactionsUI, 2000);
+    setInterval(injectReactionsUI, 3000);
+
+    console.log('[LikeLoveHate] Plugin loaded, observer active');
 
 })();
