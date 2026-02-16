@@ -9,12 +9,12 @@
     "imageUrl": "",
     "versions": [
       {
-        "version": "1.2.1.1",
-        "changelog": "## Whats New\r\n\r\n### Configurable Reaction Colors\r\nAdmins can now customize the highlight color for Like, Love, and Hate buttons in the plugin settings page (Dashboard > Plugins > LikeLoveHate). Includes color pickers with hex input and a Reset to Defaults button.\r\n\r\n### OSD Player Buttons (Fixed)\r\nReaction icons now appear in the video player bottom control bar using the proven insertAdjacentHTML injection method (same approach as InPlayerEpisodePreview plugin). Buttons insert after the favorite button with proper retry logic for async player loading.\n",
+        "version": "1.2.2.0",
+        "changelog": "## Whats New\r\n### Fixed Button Injection\r\nRewrote the injection logic so all three UI locations (detail panel, header buttons, OSD buttons) operate independently. Previously, the OSD and header buttons were gated behind the detail panel meaning they would never appear on the video player page. Now each injection point tries on its own.\n",
         "targetAbi": "10.9.0.0",
-        "sourceUrl": "https://github.com/DrBiznes/jellyfin-likelovehate/releases/download/v1.2.1.1/likelovehate_1.2.1.1.zip",
-        "checksum": "4f35398ec48ba1bca7ff39df14e83d5d",
-        "timestamp": "2026-02-16T01:33:15Z"
+        "sourceUrl": "https://github.com/DrBiznes/jellyfin-likelovehate/releases/download/v1.2.2.0/likelovehate_1.2.2.0.zip",
+        "checksum": "64f0d880339ef64544f7250f8a3794a4",
+        "timestamp": "2026-02-16T03:08:08Z"
       }
     ]
   }
