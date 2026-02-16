@@ -9,12 +9,12 @@
     "imageUrl": "",
     "versions": [
       {
-        "version": "1.1.2.0",
-        "changelog": "## Whats New\r\n\r\n### Inline Reaction Buttons\r\nReaction icons (👍👍 Love, 👍 Like, 👎 Hate) now appear in **two new locations** in addition to the existing detail panel:\r\n\r\n- **Header Button Row** — Reaction icons sit alongside Play, Trailer, Watched, and Favorite in the top action bar on item detail pages\r\n- **Video Player OSD** — Reaction icons appear in the bottom control bar while watching, next to Subtitles and Favorite\r\n\r\n### Synced State\r\nAll three locations (header row, video player, detail panel) stay in sync — clicking a reaction anywhere updates it everywhere.\r\n\r\n### Existing Panel Unchanged\r\nThe detailed Reactions section below the item info (with counts, usernames, and timestamps) remains in place.\n",
+        "version": "1.2.1.0",
+        "changelog": "## Whats New\r\n\r\n### Configurable Reaction Colors\r\nAdmins can now customize the highlight color for Like, Love, and Hate buttons in the plugin settings page. Includes color pickers with hex input and a Reset to Defaults button.\r\n\n",
         "targetAbi": "10.9.0.0",
-        "sourceUrl": "https://github.com/DrBiznes/jellyfin-likelovehate/releases/download/v1.2.0.0/likelovehate_1.1.2.0.zip",
-        "checksum": "8f10fd355de79c10657d37723abc3db3",
-        "timestamp": "2026-02-15T23:48:01Z"
+        "sourceUrl": "https://github.com/DrBiznes/jellyfin-likelovehate/releases/download/v1.2.1.0/likelovehate_1.2.1.0.zip",
+        "checksum": "41b4e09866958f6ca33bdace4011d255",
+        "timestamp": "2026-02-16T00:14:51Z"
       }
     ]
   }
