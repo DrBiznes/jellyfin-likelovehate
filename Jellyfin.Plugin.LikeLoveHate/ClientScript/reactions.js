@@ -21,6 +21,11 @@
     var currentReaction = 0;
     var isInjecting = false;
     var colorsLoaded = false;
+    var osdContainerLoaded = false;
+
+    // Track all synced button sets
+    var osdButtons = {};      // { 1: element, 2: element, 3: element }
+    var panelButtons = {};    // { 1: { btn, count }, 2: ..., 3: ... }
 
     // Fetch configured colors from server
     async function fetchColors() {
@@ -41,49 +46,9 @@
         }
     }
 
-    // Track all synced button sets
-    var headerButtons = {};   // { 1: btn, 2: btn, 3: btn }
-    var osdButtons = {};      // { 1: btn, 2: btn, 3: btn }
-    var panelButtons = {};    // { 1: { btn, count }, 2: ..., 3: ... }
-
     // ─── CSS ───────────────────────────────────────────────────────────────
     var style = document.createElement('style');
     style.textContent = [
-        /* ── Detail page header icon buttons ─────────────────── */
-        '.llh-header-btn {',
-        '    position: relative;',
-        '    transition: all 0.2s ease;',
-        '}',
-        '.llh-header-btn .detailButton-icon {',
-        '    transition: color 0.2s ease;',
-        '}',
-        '.llh-header-btn.llh-active .detailButton-icon {',
-        '    color: var(--llh-color) !important;',
-        '}',
-        '.llh-header-btn:hover .detailButton-icon {',
-        '    color: var(--llh-color) !important;',
-        '    opacity: 0.8;',
-        '}',
-        /* Love double-icon for header */
-        '.llh-header-love {',
-        '    display: inline-flex;',
-        '    position: relative;',
-        '    width: 24px;',
-        '    height: 24px;',
-        '}',
-        '.llh-header-love .detailButton-icon {',
-        '    font-size: 18px !important;',
-        '    position: absolute !important;',
-        '}',
-        '.llh-header-love .detailButton-icon:first-child {',
-        '    top: 3px;',
-        '    left: -2px;',
-        '}',
-        '.llh-header-love .detailButton-icon:last-child {',
-        '    top: -1px;',
-        '    left: 5px;',
-        '}',
-
         /* ── Video player OSD icon buttons ───────────────────── */
         '.llh-osd-btn {',
         '    transition: all 0.2s ease;',
@@ -118,7 +83,7 @@
         '    left: 7px;',
         '}',
 
-        /* ── Existing detail panel (preserved) ───────────────── */
+        /* ── Detail panel ────────────────────────────────────── */
         '.llh-container {',
         '    background: rgba(0, 0, 0, 0.15);',
         '    backdrop-filter: blur(10px);',
@@ -348,18 +313,6 @@
     // ─── Sync all button states ────────────────────────────────────────────
 
     function syncButtonStates() {
-        // Sync header buttons
-        [1, 2, 3].forEach(function (type) {
-            var btn = headerButtons[type];
-            if (btn) {
-                if (currentReaction === type) {
-                    btn.classList.add('llh-active');
-                } else {
-                    btn.classList.remove('llh-active');
-                }
-            }
-        });
-
         // Sync OSD buttons
         [1, 2, 3].forEach(function (type) {
             var btn = osdButtons[type];
@@ -406,131 +359,134 @@
         }
     }
 
-    // ─── Header buttons (detail page .mainDetailButtons) ───────────────────
+    // ─── OSD buttons (video player) ────────────────────────────────────────
+    // Uses insertAdjacentHTML approach from InPlayerEpisodePreview plugin
+    // so the is="paper-icon-button-light" custom element registers properly.
 
-    function createHeaderButtons(itemId) {
-        var container = document.querySelector('.mainDetailButtons');
-        if (!container) return;
+    function getOsdButtonHTML(type) {
+        var def = REACTIONS[type];
+        var activeClass = (currentReaction === type) ? ' llh-active' : '';
+        var id = 'llh-osd-' + type;
 
-        // Don't double-inject
-        if (container.querySelector('.llh-header-btn')) return;
+        if (def.double) {
+            return '<button is="paper-icon-button-light" class="llh-osd-btn autoSize' + activeClass + '" ' +
+                'style="--llh-color:' + def.color + '" title="' + def.name + '" id="' + id + '">' +
+                '<span class="llh-osd-love">' +
+                '<span class="xlargePaperIconButton material-icons" aria-hidden="true">thumb_up</span>' +
+                '<span class="xlargePaperIconButton material-icons" aria-hidden="true">thumb_up</span>' +
+                '</span></button>';
+        }
 
-        var moreBtn = container.querySelector('.btnMoreCommands');
-
-        // Insert in order: Love, Like, Hate
-        [2, 1, 3].forEach(function (type) {
-            var def = REACTIONS[type];
-            var btn = document.createElement('button');
-            btn.setAttribute('is', 'emby-button');
-            btn.type = 'button';
-            btn.className = 'button-flat detailButton llh-header-btn';
-            btn.style.setProperty('--llh-color', def.color);
-            btn.title = def.name;
-            if (currentReaction === type) btn.classList.add('llh-active');
-
-            var content = document.createElement('div');
-            content.className = 'detailButton-content';
-
-            if (def.double) {
-                // Love: double thumbs up
-                var loveWrap = document.createElement('span');
-                loveWrap.className = 'llh-header-love';
-                var icon1 = document.createElement('span');
-                icon1.className = 'material-icons detailButton-icon';
-                icon1.setAttribute('aria-hidden', 'true');
-                icon1.textContent = 'thumb_up';
-                var icon2 = document.createElement('span');
-                icon2.className = 'material-icons detailButton-icon';
-                icon2.setAttribute('aria-hidden', 'true');
-                icon2.textContent = 'thumb_up';
-                loveWrap.appendChild(icon1);
-                loveWrap.appendChild(icon2);
-                content.appendChild(loveWrap);
-            } else {
-                var icon = document.createElement('span');
-                icon.className = 'material-icons detailButton-icon ' + def.icon;
-                icon.setAttribute('aria-hidden', 'true');
-                icon.textContent = def.icon;
-                content.appendChild(icon);
-            }
-
-            btn.appendChild(content);
-
-            btn.addEventListener('click', function () {
-                handleReactionClick(itemId, type);
-            });
-
-            headerButtons[type] = btn;
-
-            if (moreBtn) {
-                container.insertBefore(btn, moreBtn);
-            } else {
-                container.appendChild(btn);
-            }
-        });
+        return '<button is="paper-icon-button-light" class="llh-osd-btn autoSize' + activeClass + '" ' +
+            'style="--llh-color:' + def.color + '" title="' + def.name + '" id="' + id + '">' +
+            '<span class="xlargePaperIconButton material-icons" aria-hidden="true">' + def.icon + '</span>' +
+            '</button>';
     }
 
-    // ─── OSD buttons (video player .videoOsdBottom .buttons) ───────────────
+    function isOsdButtonsCreated() {
+        var container = document.querySelector('.buttons');
+        return container && container.querySelector('#llh-osd-1') !== null;
+    }
 
     function createOsdButtons(itemId) {
-        var container = document.querySelector('.videoOsdBottom .buttons');
-        if (!container) return;
+        // Use .buttons directly (proven approach from InPlayerEpisodePreview)
+        var buttonsContainer = document.querySelector('.buttons');
+        if (!buttonsContainer) {
+            console.log('[LikeLoveHate] OSD .buttons container not found');
+            return false;
+        }
 
-        // Don't double-inject
-        if (container.querySelector('.llh-osd-btn')) return;
+        if (isOsdButtonsCreated()) {
+            console.log('[LikeLoveHate] OSD buttons already exist');
+            return true;
+        }
 
-        // Insert before subtitles button, or before the favorite button
-        var anchor = container.querySelector('.btnSubtitles') ||
-            container.querySelector('.btnUserRating') ||
-            container.querySelector('.btnAudio');
+        // Find the parent element (same approach as InPlayerEpisodePreview)
+        var parent = buttonsContainer.lastElementChild
+            ? buttonsContainer.lastElementChild.parentElement
+            : buttonsContainer;
 
-        [2, 1, 3].forEach(function (type) {
-            var def = REACTIONS[type];
-            var btn = document.createElement('button');
-            btn.setAttribute('is', 'paper-icon-button-light');
-            btn.className = 'autoSize llh-osd-btn';
-            btn.style.setProperty('--llh-color', def.color);
-            btn.title = def.name;
-            if (currentReaction === type) btn.classList.add('llh-active');
+        // Find the position: after favorite button (btnUserRating)
+        var insertAfterIndex = Array.from(parent.children).findIndex(function (child) {
+            return child.classList.contains('btnUserRating');
+        });
 
-            if (def.double) {
-                var loveWrap = document.createElement('span');
-                loveWrap.className = 'llh-osd-love';
-                var icon1 = document.createElement('span');
-                icon1.className = 'xlargePaperIconButton material-icons';
-                icon1.setAttribute('aria-hidden', 'true');
-                icon1.textContent = 'thumb_up';
-                var icon2 = document.createElement('span');
-                icon2.className = 'xlargePaperIconButton material-icons';
-                icon2.setAttribute('aria-hidden', 'true');
-                icon2.textContent = 'thumb_up';
-                loveWrap.appendChild(icon1);
-                loveWrap.appendChild(icon2);
-                btn.appendChild(loveWrap);
-            } else {
-                var icon = document.createElement('span');
-                icon.className = 'xlargePaperIconButton material-icons ' + def.icon;
-                icon.setAttribute('aria-hidden', 'true');
-                icon.textContent = def.icon;
-                btn.appendChild(icon);
-            }
-
-            btn.addEventListener('click', function (e) {
-                e.stopPropagation(); // Don't trigger player controls
-                handleReactionClick(itemId, type);
+        // Fallback: after the time text
+        if (insertAfterIndex === -1) {
+            insertAfterIndex = Array.from(parent.children).findIndex(function (child) {
+                return child.classList.contains('osdTimeText');
             });
+        }
 
-            osdButtons[type] = btn;
+        console.log('[LikeLoveHate] Inserting OSD buttons after index:', insertAfterIndex);
 
-            if (anchor) {
-                container.insertBefore(btn, anchor);
-            } else {
-                container.appendChild(btn);
+        // Build all 3 button HTML strings: Love, Like, Hate
+        // Insert in reverse order since we use insertAdjacentHTML('afterend',...)
+        // so the final order is: Love, Like, Hate
+        var types = [3, 1, 2]; // Reverse of desired order [2, 1, 3]
+
+        var insertAfterElement = (insertAfterIndex >= 0 && insertAfterIndex < parent.children.length)
+            ? parent.children[insertAfterIndex]
+            : parent.lastElementChild;
+
+        if (!insertAfterElement) {
+            console.warn('[LikeLoveHate] No element to insert OSD buttons after');
+            return false;
+        }
+
+        types.forEach(function (type) {
+            insertAfterElement.insertAdjacentHTML('afterend', getOsdButtonHTML(type));
+        });
+
+        // Attach click handlers to the newly inserted buttons
+        [1, 2, 3].forEach(function (type) {
+            var btn = document.getElementById('llh-osd-' + type);
+            if (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    handleReactionClick(itemId, type);
+                });
+                osdButtons[type] = btn;
             }
         });
+
+        console.log('[LikeLoveHate] OSD buttons injected successfully');
+        return true;
     }
 
-    // ─── Detail panel (existing Reactions section) ─────────────────────────
+    function attemptLoadOsdButtons(itemId, retryCount) {
+        retryCount = retryCount || 0;
+        var maxRetries = 3;
+        var routeChangeDelay = 1500;
+
+        // Only inject on video playback pages
+        var path = window.location.href;
+        var isVideoPage = path.indexOf('/video') !== -1 ||
+            path.indexOf('videoosd') !== -1 ||
+            document.querySelector('.videoOsdBottom') !== null;
+
+        if (!isVideoPage) return;
+
+        if (isOsdButtonsCreated()) return;
+
+        setTimeout(function () {
+            if (isOsdButtonsCreated()) return;
+
+            var buttonsContainer = document.querySelector('.buttons');
+            if (buttonsContainer && !osdContainerLoaded) {
+                if (createOsdButtons(itemId)) {
+                    osdContainerLoaded = true;
+                }
+            } else if (retryCount < maxRetries) {
+                console.log('[LikeLoveHate] OSD retry ' + (retryCount + 1) + '/' + maxRetries);
+                setTimeout(function () {
+                    attemptLoadOsdButtons(itemId, retryCount + 1);
+                }, 5000);
+            }
+        }, routeChangeDelay);
+    }
+
+    // ─── Detail panel (Reactions section on movie/show page) ───────────────
 
     async function createReactionsPanel(itemId) {
         var container = document.createElement('div');
@@ -667,24 +623,13 @@
         return itemId;
     }
 
-    function cleanupButtons() {
-        // Remove header buttons
-        Object.keys(headerButtons).forEach(function (key) {
-            if (headerButtons[key] && headerButtons[key].parentNode) {
-                headerButtons[key].remove();
-            }
-        });
-        headerButtons = {};
-
-        // Remove OSD buttons
-        Object.keys(osdButtons).forEach(function (key) {
-            if (osdButtons[key] && osdButtons[key].parentNode) {
-                osdButtons[key].remove();
-            }
+    function cleanupOsdButtons() {
+        [1, 2, 3].forEach(function (type) {
+            var btn = document.getElementById('llh-osd-' + type);
+            if (btn) btn.remove();
         });
         osdButtons = {};
-
-        panelButtons = {};
+        osdContainerLoaded = false;
     }
 
     function injectReactionsUI() {
@@ -709,7 +654,8 @@
         if (currentItemId !== itemId) {
             var existingUI = document.getElementById('llh-reactions-ui');
             if (existingUI) existingUI.remove();
-            cleanupButtons();
+            cleanupOsdButtons();
+            panelButtons = {};
             currentReaction = 0;
             currentItemId = itemId;
         }
@@ -734,8 +680,6 @@
                 createReactionsPanel(itemId).then(function (ui) {
                     targetContainer.appendChild(ui);
                     isInjecting = false;
-                    // Now that we have the reaction state, inject header buttons
-                    createHeaderButtons(itemId);
                 });
                 return;
             } else if (injectionAttempts < maxInjectionAttempts) {
@@ -749,22 +693,35 @@
             }
         }
 
-        // ── Inject header buttons if not already present ──
-        var mainBtns = document.querySelector('.mainDetailButtons');
-        if (mainBtns && !mainBtns.querySelector('.llh-header-btn')) {
-            createHeaderButtons(itemId);
+        // ── Attempt OSD button injection if video player is active ──
+        if (!isOsdButtonsCreated()) {
+            attemptLoadOsdButtons(itemId);
         }
+    }
 
-        // ── Inject OSD buttons if video player is active ──
-        var osdContainer = document.querySelector('.videoOsdBottom .buttons');
-        if (osdContainer && !osdContainer.querySelector('.llh-osd-btn')) {
-            createOsdButtons(itemId);
+    // ─── Route change detection ────────────────────────────────────────────
+    // Reset OSD state when navigating away from video player
+    var lastUrl = window.location.href;
+
+    function onRouteChange() {
+        var newUrl = window.location.href;
+        if (newUrl !== lastUrl) {
+            lastUrl = newUrl;
+            osdContainerLoaded = false;
+
+            // If we left the video player, clean up OSD buttons
+            var isVideoPage = newUrl.indexOf('/video') !== -1 ||
+                newUrl.indexOf('videoosd') !== -1;
+            if (!isVideoPage) {
+                cleanupOsdButtons();
+            }
         }
     }
 
     // ─── Observer for navigation changes ───────────────────────────────────
 
     var observer = new MutationObserver(function () {
+        onRouteChange();
         injectReactionsUI();
     });
 
