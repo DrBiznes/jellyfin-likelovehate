@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    console.log('[LikeLoveHate] Loading plugin v1.2.1.1...');
+
 
     // Load Google Material Symbols font (filled variant for active states)
     var materialLink = document.createElement('link');
@@ -39,9 +39,8 @@
             if (colors.loveColor) REACTIONS[2].color = colors.loveColor;
             if (colors.hateColor) REACTIONS[3].color = colors.hateColor;
             colorsLoaded = true;
-            console.log('[LikeLoveHate] Colors loaded:', colors);
         } catch (error) {
-            console.warn('[LikeLoveHate] Could not load colors, using defaults:', error);
+
             colorsLoaded = true;
         }
     }
@@ -335,7 +334,7 @@
     // ─── Reaction click handler (shared by all locations) ──────────────────
 
     async function handleReactionClick(itemId, type) {
-        console.log('[LikeLoveHate] Reaction clicked:', type, 'on item:', itemId, 'current:', currentReaction);
+
         if (currentReaction === type) {
             await removeReaction(itemId);
             currentReaction = 0;
@@ -438,7 +437,6 @@
     function createHeaderButtons(itemId) {
         var container = document.querySelector('.mainDetailButtons');
         if (!container) {
-            console.log('[LikeLoveHate] Header: .mainDetailButtons not found');
             return false;
         }
 
@@ -448,12 +446,9 @@
 
         // Find the More button (three-dot menu) to insert before
         var moreBtn = container.querySelector('.btnMoreCommands');
-        if (!moreBtn) {
-            console.log('[LikeLoveHate] Header: .btnMoreCommands not found, trying other anchors');
-        }
 
-        // Insert buttons: Love, Like, Hate (reverse order since we insert before same anchor)
-        var types = [3, 1, 2];
+        // Insert buttons in desired order: Love, Like, Hate
+        var types = [2, 1, 3];
 
         types.forEach(function (type) {
             var html = getHeaderButtonHTML(type);
@@ -476,7 +471,7 @@
             }
         });
 
-        console.log('[LikeLoveHate] Header buttons injected successfully');
+
         return true;
     }
 
@@ -508,32 +503,23 @@
     }
 
     function createOsdButtons(itemId) {
-        console.log('[LikeLoveHate] OSD: Attempting injection...');
 
         // Look specifically in the videoOsdBottom area
         var videoOsd = document.querySelector('.videoOsdBottom');
         if (!videoOsd) {
-            console.log('[LikeLoveHate] OSD: .videoOsdBottom not found');
             return false;
         }
 
         var buttonsContainer = videoOsd.querySelector('.buttons');
         if (!buttonsContainer) {
-            console.log('[LikeLoveHate] OSD: .buttons inside videoOsdBottom not found');
             return false;
         }
 
         if (isOsdButtonsCreated()) {
-            console.log('[LikeLoveHate] OSD: buttons already exist, skipping');
             return true;
         }
 
-        console.log('[LikeLoveHate] OSD: Found buttons container with', buttonsContainer.children.length, 'children');
 
-        // Log all children for debugging
-        Array.from(buttonsContainer.children).forEach(function (child, i) {
-            console.log('[LikeLoveHate] OSD child[' + i + ']:', child.tagName, child.className);
-        });
 
         // Find the favorite button to insert after
         var insertAfterElement = null;
@@ -544,7 +530,6 @@
         for (var i = 0; i < anchorSelectors.length; i++) {
             insertAfterElement = buttonsContainer.querySelector(anchorSelectors[i]);
             if (insertAfterElement) {
-                console.log('[LikeLoveHate] OSD: Found anchor:', anchorSelectors[i]);
                 break;
             }
         }
@@ -552,11 +537,9 @@
         if (!insertAfterElement) {
             // Fallback: use the last child
             insertAfterElement = buttonsContainer.lastElementChild;
-            console.log('[LikeLoveHate] OSD: No anchor found, using last child');
         }
 
         if (!insertAfterElement) {
-            console.warn('[LikeLoveHate] OSD: Container is empty, cannot inject');
             return false;
         }
 
@@ -578,13 +561,10 @@
                     handleReactionClick(itemId, type);
                 });
                 osdButtons[type] = btn;
-                console.log('[LikeLoveHate] OSD: Button ' + type + ' handler attached');
-            } else {
-                console.warn('[LikeLoveHate] OSD: Could not find button for type ' + type);
             }
         });
 
-        console.log('[LikeLoveHate] OSD: All buttons injected successfully');
+
         return true;
     }
 
@@ -702,8 +682,6 @@
 
     // ─── Item ID detection ─────────────────────────────────────────────────
 
-    var lastIdDebugLog = 0;
-
     function getItemId() {
         var itemId = null;
         var href = window.location.href;
@@ -711,61 +689,32 @@
         // Method 1: Query string ?id=xxx
         var urlParams = new URLSearchParams(window.location.search);
         itemId = urlParams.get('id');
-        if (itemId) {
-            console.log('[LikeLoveHate] ID found via query string:', itemId);
-            return itemId;
-        }
+        if (itemId) return itemId;
 
         // Method 2: Hash params #!/details?id=xxx or #/details?id=xxx
         if (window.location.hash.indexOf('?') !== -1) {
             var hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
             itemId = hashParams.get('id');
-            if (itemId) {
-                console.log('[LikeLoveHate] ID found via hash params:', itemId);
-                return itemId;
-            }
+            if (itemId) return itemId;
         }
 
         // Method 3: Standard GUID with dashes in URL
         var guidMatch = href.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
-        if (guidMatch) {
-            console.log('[LikeLoveHate] ID found via GUID regex:', guidMatch[1]);
-            return guidMatch[1];
-        }
+        if (guidMatch) return guidMatch[1];
 
         // Method 4: Jellyfin 10.11+ uses 32-char hex IDs without dashes
-        // Match id= parameter anywhere in the URL (including hash)
         var idParamMatch = href.match(/[?&]id=([a-f0-9]{32})/i);
-        if (idParamMatch) {
-            console.log('[LikeLoveHate] ID found via id= param (hex32):', idParamMatch[1]);
-            return idParamMatch[1];
-        }
+        if (idParamMatch) return idParamMatch[1];
 
         // Method 5: Look for 32-char hex in URL path segments
-        // e.g. /web/index.html#!/details?id=997d089bab0ed34edb8e229cae631e49
-        // or /web/#/items/997d089bab0ed34edb8e229cae631e49
         var hex32Match = href.match(/\/([a-f0-9]{32})(?:[?&#/]|$)/i);
-        if (hex32Match) {
-            console.log('[LikeLoveHate] ID found via path hex32:', hex32Match[1]);
-            return hex32Match[1];
-        }
+        if (hex32Match) return hex32Match[1];
 
         // Method 6: Try extracting from the page's data attributes
         var detailPage = document.querySelector('[data-id]');
         if (detailPage) {
             itemId = detailPage.getAttribute('data-id');
-            if (itemId) {
-                console.log('[LikeLoveHate] ID found via data-id attribute:', itemId);
-                return itemId;
-            }
-        }
-
-        // Debug: log URL info (throttled to avoid spam)
-        var now = Date.now();
-        if (now - lastIdDebugLog > 10000) {
-            lastIdDebugLog = now;
-            console.log('[LikeLoveHate] Could not find item ID in URL:', href);
-            console.log('[LikeLoveHate] search:', window.location.search, 'hash:', window.location.hash);
+            if (itemId) return itemId;
         }
 
         return null;
@@ -818,7 +767,7 @@
 
         // Item changed — clean up old UI
         if (currentItemId !== itemId) {
-            console.log('[LikeLoveHate] Item changed:', currentItemId, '->', itemId);
+
             var existingUI = document.getElementById('llh-reactions-ui');
             if (existingUI) existingUI.remove();
             cleanupAllButtons();
@@ -847,7 +796,7 @@
                 createReactionsPanel(itemId).then(function (ui) {
                     targetContainer.appendChild(ui);
                     isInjecting = false;
-                    console.log('[LikeLoveHate] Detail panel injected');
+
                     // Now try header buttons too
                     createHeaderButtons(itemId);
                 });
@@ -888,6 +837,6 @@
     setTimeout(injectReactionsUI, 1000);
     setInterval(injectReactionsUI, 3000);
 
-    console.log('[LikeLoveHate] Plugin loaded, observer active');
+
 
 })();

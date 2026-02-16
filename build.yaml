@@ -1,7 +1,7 @@
 ---
 name: "LikeLoveHate"
 guid: "a7b3c1d2-4e5f-6789-abcd-ef0123456789"
-version: "1.2.2.1"
+version: "1.2.3.0"
 targetAbi: "10.9.0.0"
 framework: "net9.0"
 overview: "React to media with Like, Love, or Hate"
@@ -14,6 +14,6 @@ owner: "DrBiznes"
 artifacts:
 - "Jellyfin.Plugin.LikeLoveHate.dll"
 changelog: >
-  Fixed button injection in video player OSD and detail page header.
-  Added configurable reaction colors in plugin settings.
-  Added debug logging for troubleshooting.
+  Fixed item ID detection for Jellyfin 10.11+ (32-char hex IDs).
+  Reaction buttons now appear in header row and video player OSD.
+  Configurable reaction colors in plugin settings.
