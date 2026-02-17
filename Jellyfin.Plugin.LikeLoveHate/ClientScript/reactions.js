@@ -382,40 +382,38 @@
 
     // ─── Sync all button states ────────────────────────────────────────────
 
+    // ─── Sync all button states ────────────────────────────────────────────
+
     function syncButtonStates() {
-        // Sync header buttons
-        [1, 2, 3].forEach(function (type) {
-            var btn = headerButtons[type];
-            if (btn) {
-                if (currentReaction === type) {
-                    btn.classList.add('llh-active');
-                } else {
-                    btn.classList.remove('llh-active');
-                }
+        // Helper to update a class list based on active state
+        function updateState(el, type) {
+            if (!el) return;
+            // Handle polymer/standard buttons
+            if (currentReaction === type) {
+                el.classList.add('llh-active');
+                if (el.classList.contains('llh-btn')) el.classList.add('active'); // Panel buttons
+            } else {
+                el.classList.remove('llh-active');
+                if (el.classList.contains('llh-btn')) el.classList.remove('active');
             }
-        });
+        }
 
-        // Sync OSD buttons
         [1, 2, 3].forEach(function (type) {
-            var btn = osdButtons[type];
-            if (btn) {
-                if (currentReaction === type) {
-                    btn.classList.add('llh-active');
-                } else {
-                    btn.classList.remove('llh-active');
-                }
-            }
-        });
+            // 1. Header Buttons (ID-based, safe)
+            var headerBtn = document.getElementById('llh-header-' + type);
+            updateState(headerBtn, type);
 
-        // Sync panel buttons
-        [1, 2, 3].forEach(function (type) {
-            var b = panelButtons[type];
-            if (b && b.btn) {
-                if (currentReaction === type) {
-                    b.btn.classList.add('active');
-                } else {
-                    b.btn.classList.remove('active');
-                }
+            // 2. OSD Buttons (ID-based, safe)
+            var osdBtn = document.getElementById('llh-osd-' + type);
+            updateState(osdBtn, type);
+
+            // 3. Panel Buttons
+            // We can find them via our panelButtons cache OR via DOM if we added IDs or predictable classes
+            // Our previous createReactionsPanel stored them in panelButtons.
+            // Let's verify if those elements are still in document.
+            var pBtn = panelButtons[type];
+            if (pBtn && pBtn.btn && document.contains(pBtn.btn)) {
+                updateState(pBtn.btn, type);
             }
         });
     }
@@ -427,7 +425,8 @@
         // Update panel button counts
         [1, 2, 3].forEach(function (type) {
             var b = panelButtons[type];
-            if (b && b.count) {
+            // Only update if element is still valid
+            if (b && b.count && document.contains(b.count)) {
                 b.count.textContent = counts[type] > 0 ? counts[type] : '';
             }
         });
@@ -798,60 +797,74 @@
 
     // ─── Cleanup ───────────────────────────────────────────────────────────
 
-    function cleanupAllButtons() {
-        // Remove header buttons
-        [1, 2, 3].forEach(function (type) {
-            var btn = document.getElementById('llh-header-' + type);
-            if (btn) btn.remove();
-        });
-        headerButtons = {};
 
-        // Remove OSD buttons
-        [1, 2, 3].forEach(function (type) {
-            var btn = document.getElementById('llh-osd-' + type);
-            if (btn) btn.remove();
-        });
-        osdButtons = {};
 
-        panelButtons = {};
+    // ─── Robust Injection Strategy (Jellyfin Enhanced Style) ───────────────
+
+    var injectionDebounce = null;
+
+    function injectUI() {
+        // 1. Resolve current effective item ID
+        // Note: This needs to be fast. The async resolution logic in previous 'injectReactionsUI'
+        // is good but we need to integrate it into this flow.
+
+        // We'll use a simpler synchronous check first to decide if we SHOULD inject
+        var rawItemId = getItemId();
+        if (!rawItemId) {
+            return;
+        }
+
+        // 2. Target only the VISIBLE page
+        // Jellyfin keeps old pages in DOM with .hide class.
+        // We want the active view or the video OSD.
+
+        // A. Detail Page Injection
+        // Look for visible detail page
+        var visibleDetailPage = document.querySelector('.detailPageWrapper:not(.hide)');
+        // Note: Class names vary by Jellyfin version. .detailPageWrapper is common,
+        // also just checking for .page:not(.hide) that has .detailPage content.
+
+        // Actually, let's keep it simple: try to match standard containers if they are visible
+        injectDetailUI(rawItemId);
+
+        // B. Video OSD Injection
+        // OSD is independent of the page. It appears when video is playing/paused.
+        var videoOsd = document.querySelector('.videoOsdBottom');
+        if (videoOsd && !videoOsd.closest('.hide')) {
+            injectOsdUI(rawItemId);
+        }
     }
 
-    // ─── Main injection logic ──────────────────────────────────────────────
-    // IMPORTANT: Detail panel, header buttons, and OSD buttons are ALL
-    // injected independently. OSD does NOT depend on the detail panel.
-
-    var injectionAttempts = 0;
-    var maxInjectionAttempts = 30;
     var idResolutionCache = {}; // rawId -> resolvedId
 
-    async function injectReactionsUI() {
+    async function injectDetailUI(rawItemId) {
         if (isInjecting) return;
 
-        var rawItemId = getItemId();
-
-        if (!rawItemId) {
-            injectionAttempts = 0;
-            return;
+        // Check if we are actually on a detail page
+        // We look for the main container. If it's not there, we bail.
+        var targetContainer = document.querySelector('.detailPagePrimaryContent .detailSection');
+        if (!targetContainer) {
+            var primaryContent = document.querySelector('.detailPagePrimaryContent');
+            if (primaryContent && primaryContent.children.length > 0) {
+                targetContainer = primaryContent;
+            }
+        }
+        if (!targetContainer) {
+            targetContainer = document.querySelector('.detailSection');
         }
 
-        // Ensure colors are loaded before rendering anything
-        if (!colorsLoaded) {
-            fetchColors().then(function () {
-                injectReactionsUI();
-            });
-            return;
-        }
+        if (!targetContainer || targetContainer.closest('.hide')) return;
 
         isInjecting = true;
 
-        // Resolve efficient ID (Episode -> Series)
+        // Resolve ID (Episode -> Series)
         var finalItemId = rawItemId;
         if (idResolutionCache[rawItemId]) {
             finalItemId = idResolutionCache[rawItemId];
         } else {
             try {
-                // Only fetch if it looks like it might be an episode (or just always fetch safely)
-                // We'll trust the cache to keep it fast after first load
+                // If it's an episode, fetch series ID
+                // Just fetching item to be sure
                 var item = await ApiClient.getItem(ApiClient.getCurrentUserId(), rawItemId);
                 if (item.Type === 'Episode' && item.SeriesId) {
                     finalItemId = item.SeriesId;
@@ -860,84 +873,122 @@
                 }
                 idResolutionCache[rawItemId] = finalItemId;
             } catch (e) {
-                console.error('[LikeLoveHate] Error resolving item ID:', e);
-                // Fallback to raw ID
                 finalItemId = rawItemId;
             }
         }
 
-        // Item changed — clean up old UI
-        if (currentItemId !== finalItemId) {
-            var existingUI = document.getElementById('llh-reactions-ui');
-            if (existingUI) existingUI.remove();
-            cleanupAllButtons();
-            currentReaction = 0;
-            currentItemId = finalItemId;
-            injectionAttempts = 0;
+        currentItemId = finalItemId;
+
+        // Ensure colors loaded
+        if (!colorsLoaded) {
+            await fetchColors();
         }
 
-        // ── 1. Inject detail panel (only on detail pages) ──
+        // 1. Inject Panel
         var existingPanel = document.getElementById('llh-reactions-ui');
         if (!existingPanel) {
-            var targetContainer = document.querySelector('.detailPagePrimaryContent .detailSection');
-            if (!targetContainer) {
-                var primaryContent = document.querySelector('.detailPagePrimaryContent');
-                if (primaryContent && primaryContent.children.length > 0) {
-                    targetContainer = primaryContent;
-                }
-            }
-            if (!targetContainer) {
-                targetContainer = document.querySelector('.detailSection');
-            }
-
-            if (targetContainer) {
-                injectionAttempts = 0;
-                // Create panel with resolved ID
-                createReactionsPanel(currentItemId).then(function (ui) {
+            var ui = await createReactionsPanel(finalItemId);
+            // Re-check existence before appending to avoid race
+            if (!document.getElementById('llh-reactions-ui')) {
+                // Ensure target is still there
+                if (targetContainer && document.body.contains(targetContainer)) {
                     targetContainer.appendChild(ui);
-
-                    // Now try header buttons too
-                    createHeaderButtons(currentItemId);
-                });
-            } else {
-                // Don't block other injection on panel failure - just retry silently
-                if (injectionAttempts < maxInjectionAttempts) {
-                    injectionAttempts++;
                 }
             }
         }
 
-        // ── 2. Inject header buttons (detail page, independent of panel) ──
-        if (!isHeaderButtonsCreated()) {
-            createHeaderButtons(currentItemId);
-        }
-
-        // ── 3. Inject OSD buttons (video player, completely independent) ──
-        if (!isOsdButtonsCreated()) {
-            var videoOsd = document.querySelector('.videoOsdBottom');
-            if (videoOsd) {
-                createOsdButtons(currentItemId);
-            }
+        // 2. Inject Header Buttons
+        if (!document.getElementById('llh-header-1')) {
+            createHeaderButtons(finalItemId);
         }
 
         isInjecting = false;
+
+        // Trigger a UI refresh to ensure headers/panel are synced
+        refreshAllUI(finalItemId);
     }
 
-    // ─── Observer for navigation/DOM changes ───────────────────────────────
+    async function injectOsdUI(rawItemId) {
+        if (document.getElementById('llh-osd-1')) return;
 
-    var debounceTimer = null;
-    var observer = new MutationObserver(function () {
-        // Debounce to avoid excessive calls from rapid DOM mutations
-        if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(injectReactionsUI, 250);
+        // For OSD, we also want to resolve to Series ID if it's an episode
+        // We can reuse the same cache logic or just do it.
+        var finalItemId = rawItemId;
+        if (idResolutionCache[rawItemId]) {
+            finalItemId = idResolutionCache[rawItemId];
+        } else {
+            // If we are in OSD, likely we are playing.
+            // We can try to use standard API or just rely on raw ID if cache miss for speed,
+            // then update later. But better to be correct.
+            try {
+                var item = await ApiClient.getItem(ApiClient.getCurrentUserId(), rawItemId);
+                if (item.Type === 'Episode' && item.SeriesId) {
+                    finalItemId = item.SeriesId;
+                }
+                idResolutionCache[rawItemId] = finalItemId;
+            } catch (e) { /* ignore */ }
+        }
+
+        if (!colorsLoaded) await fetchColors();
+
+        createOsdButtons(finalItemId);
+
+        // Correct the global currentItemId for sync purposes if we are in OSD mode
+        currentItemId = finalItemId;
+
+        // Refresh to sync state
+        refreshAllUI(finalItemId);
+    }
+
+    // Main Debounced Handler
+    function handleDomChange() {
+        if (injectionDebounce) clearTimeout(injectionDebounce);
+        injectionDebounce = setTimeout(injectUI, 200);
+    }
+
+    // ─── Event Listeners ──────────────────────────────────────────────────
+
+    // 1. ViewShow: Jellyfin's navigation event
+    document.addEventListener('viewshow', function () {
+        handleDomChange();
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    // 2. MutationObserver: Monitor DOM for changes (e.g. async loading)
+    var observer = new MutationObserver(function (mutations) {
+        var shouldUpdate = false;
+        for (var i = 0; i < mutations.length; i++) {
+            var m = mutations[i];
+            // We care about nodes added
+            if (m.addedNodes.length > 0) {
+                shouldUpdate = true;
+                break;
+            }
+            // Or attributes checking for page visibility changes
+            if (m.type === 'attributes' && (m.attributeName === 'class' || m.attributeName === 'style')) {
+                shouldUpdate = true;
+                break;
+            }
+        }
+        if (shouldUpdate) handleDomChange();
+    });
 
-    // Initial check + periodic fallback (catches cases the observer misses)
-    setTimeout(injectReactionsUI, 1000);
-    setInterval(injectReactionsUI, 3000);
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'style'] // Optimization: only watch relevant attributes
+    });
 
+    // 3. Staggered Checks: Safety net for slow loads
+    // When location changes (hash change), trigger multiple checks
+    window.addEventListener('hashchange', function () {
+        handleDomChange();
+        setTimeout(injectUI, 1000);
+        setTimeout(injectUI, 3000);
+    });
 
+    // Initial load
+    handleDomChange();
+    setTimeout(injectUI, 1000);
 
 })();

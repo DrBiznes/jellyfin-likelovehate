@@ -164,10 +164,10 @@
                 <div class="verticalSection" style="margin-top: 2em;">
                     <h2>Export Data</h2>
                     <p>Download all reactions as a JSON file.</p>
-                    <a is="emby-button" class="raised button-submit block" href="/api/LikeLoveHate/Export"
-                        target="_blank">
+                    <button is="emby-button" type="button" class="raised button-submit block" id="btnExport">
                         Export Reactions (JSON)
-                    </a>
+                    </button>
+                    <div id="exportResult" style="margin-top: 0.5em; font-weight: 500;"></div>
                 </div>
 
                 <div class="verticalSection" style="margin-top: 2em;">
@@ -275,6 +275,52 @@
                 return false;
             });
 
+        // Export handler (Auth-safe download)
+        document.querySelector('#btnExport').addEventListener('click', function () {
+            var btn = this;
+            var result = document.querySelector('#exportResult');
+            result.textContent = '';
+
+            btn.disabled = true;
+            Dashboard.showLoadingMsg();
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', ApiClient.getUrl('LikeLoveHate/Export'), true);
+            xhr.setRequestHeader('X-Emby-Token', ApiClient.accessToken());
+            xhr.responseType = 'blob';
+
+            xhr.onload = function () {
+                Dashboard.hideLoadingMsg();
+                btn.disabled = false;
+
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    var blob = xhr.response;
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'reactions_export.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    result.textContent = 'Export started.';
+                    result.style.color = '#66bb6a';
+                } else {
+                    result.textContent = 'Export failed: ' + xhr.statusText;
+                    result.style.color = '#ef5350';
+                }
+            };
+
+            xhr.onerror = function () {
+                Dashboard.hideLoadingMsg();
+                btn.disabled = false;
+                result.textContent = 'Network error.';
+                result.style.color = '#ef5350';
+            };
+
+            xhr.send();
+        });
+
         // Import handler
         document.querySelector('#btnImport').addEventListener('click', function () {
             var input = document.querySelector('#importFile');
@@ -324,14 +370,37 @@
             xhr.send(formData);
         });
 
-        // Wipe handler
+        // Wipe handler (2-step confirm)
+        var wipeConfirmTimer = null;
+        var wipeStep = 0; // 0=Normal, 1=Confirming
+
         document.querySelector('#btnWipe').addEventListener('click', function () {
-            // Native confirm dialog
-            if (!confirm('Are you sure you want to delete ALL reactions? This cannot be undone.')) {
+            var btn = this;
+            var result = document.querySelector('#wipeResult');
+
+            if (wipeStep === 0) {
+                // Step 1: Request confirmation
+                wipeStep = 1;
+                btn.textContent = 'Click again to CONFIRM wipe';
+                btn.style.background = '#d32f2f'; // Brighter red
+                btn.style.border = '2px solid #ffeba0';
+
+                // Reset after 3 seconds if not clicked
+                if (wipeConfirmTimer) clearTimeout(wipeConfirmTimer);
+                wipeConfirmTimer = setTimeout(function () {
+                    wipeStep = 0;
+                    btn.textContent = 'Wipe All Reactions';
+                    btn.style.background = '#c62828';
+                    btn.style.border = '';
+                }, 3000);
                 return;
             }
 
-            var result = document.querySelector('#wipeResult');
+            // Step 2: Execute
+            if (wipeConfirmTimer) clearTimeout(wipeConfirmTimer);
+            wipeStep = 0; // Reset
+            btn.textContent = 'Wiping...';
+
             Dashboard.showLoadingMsg();
             result.textContent = '';
 
@@ -341,6 +410,10 @@
 
             xhr.onload = function () {
                 Dashboard.hideLoadingMsg();
+                btn.textContent = 'Wipe All Reactions';
+                btn.style.background = '#c62828';
+                btn.style.border = '';
+
                 if (xhr.status >= 200 && xhr.status < 300) {
                     var resp = JSON.parse(xhr.responseText);
                     result.textContent = resp.message;
@@ -358,6 +431,7 @@
 
             xhr.onerror = function () {
                 Dashboard.hideLoadingMsg();
+                btn.textContent = 'Wipe All Reactions';
                 result.textContent = 'Network error occurred.';
                 result.style.color = '#ef5350';
             };
