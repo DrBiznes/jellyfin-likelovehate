@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.RegularExpressions;
 using Jellyfin.Plugin.LikeLoveHate.Configuration;
+using Jellyfin.Plugin.LikeLoveHate.Data;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Configuration;
@@ -39,6 +40,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
+        Tracker = new Data.ReactionRepository(applicationPaths);
 
         try
         {
@@ -68,6 +70,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// Gets the current plugin instance.
     /// </summary>
     public static Plugin? Instance { get; private set; }
+
+    /// <summary>
+    /// Gets the reaction repository instance.
+    /// </summary>
+    public ReactionRepository Tracker { get; private set; }
 
     /// <summary>
     /// Gets the cached base URL path for use by the static callback.

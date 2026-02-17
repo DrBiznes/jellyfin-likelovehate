@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading.Tasks;
+using Jellyfin.Plugin.LikeLoveHate;
 using Jellyfin.Plugin.LikeLoveHate.Data;
 using Jellyfin.Plugin.LikeLoveHate.Models;
 using MediaBrowser.Common.Configuration;
@@ -29,14 +32,11 @@ public class ReactionsController : ControllerBase
     /// <summary>
     /// Initializes a new instance of the <see cref="ReactionsController"/> class.
     /// </summary>
-    /// <param name="appPaths">Application paths.</param>
     /// <param name="logger">Logger instance.</param>
-    public ReactionsController(
-        IApplicationPaths appPaths,
-        ILogger<ReactionsController> logger)
+    public ReactionsController(ILogger<ReactionsController> logger)
     {
-        _repository = new ReactionRepository(appPaths);
         _logger = logger;
+        _repository = Plugin.Instance!.Tracker;
     }
 
     /// <summary>
@@ -222,6 +222,63 @@ public class ReactionsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error exporting reactions");
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Import reactions from a JSON file.
+    /// </summary>
+    /// <param name="file">The JSON file to import.</param>
+    /// <returns>Import result.</returns>
+    [HttpPost("Import")]
+    [Produces(MediaTypeNames.Application.Json)]
+    public async Task<ActionResult> ImportReactions(IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { success = false, message = "No file uploaded" });
+            }
+
+            using var stream = file.OpenReadStream();
+            var reactions = await JsonSerializer.DeserializeAsync<List<UserReaction>>(stream).ConfigureAwait(false);
+
+            if (reactions == null)
+            {
+                return BadRequest(new { success = false, message = "Invalid JSON format" });
+            }
+
+            var count = _repository.ImportReactions(reactions);
+            _logger.LogInformation("Imported {Count} reactions from file", count);
+
+            return Ok(new { success = true, count, message = $"Successfully imported {count} reactions" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error importing reactions");
+            return StatusCode(500, new { success = false, message = "Error importing file: " + ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Wipe all reactions data.
+    /// </summary>
+    /// <returns>Success message.</returns>
+    [HttpDelete("Wipe")]
+    [Produces(MediaTypeNames.Application.Json)]
+    public ActionResult WipeReactions()
+    {
+        try
+        {
+            _repository.WipeAllReactions();
+            _logger.LogInformation("All reactions wiped by admin");
+            return Ok(new { success = true, message = "All reactions have been wiped successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error wiping reactions");
             return StatusCode(500, new { success = false, message = ex.Message });
         }
     }

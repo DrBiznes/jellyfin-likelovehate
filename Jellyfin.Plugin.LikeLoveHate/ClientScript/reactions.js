@@ -217,28 +217,63 @@
         '    color: #ffffff;',
         '    margin-bottom: 0.75em;',
         '}',
-        '.llh-reaction-item {',
+        '.llh-reactions-grid {',
         '    display: flex;',
+        '    flex-wrap: wrap;',
+        '    gap: 0.4em;',
+        '}',
+        '.llh-reaction-chip {',
+        '    display: inline-flex;',
         '    align-items: center;',
-        '    gap: 0.6em;',
-        '    padding: 0.5em 0.75em;',
-        '    margin: 0.35em 0;',
-        '    background: rgba(0, 0, 0, 0.12);',
-        '    border-radius: 6px;',
-        '    border: 1px solid rgba(255, 255, 255, 0.05);',
+        '    gap: 0.4em;',
+        '    padding: 0.3em 0.65em 0.3em 0.3em;',
+        '    background: rgba(0, 0, 0, 0.18);',
+        '    border-radius: 20px;',
+        '    border: 1.5px solid var(--llh-chip-color, rgba(255, 255, 255, 0.1));',
         '    color: #ffffff;',
-        '    font-size: 0.9em;',
+        '    font-size: 0.82em;',
+        '    transition: background 0.15s ease;',
         '}',
-        '.llh-reaction-item .material-symbols-outlined {',
-        '    font-size: 1.1em;',
+        '.llh-reaction-chip:hover {',
+        '    background: rgba(255, 255, 255, 0.06);',
         '}',
-        '.llh-reaction-user {',
-        '    font-weight: 500;',
-        '    flex: 1;',
+        '.llh-avatar {',
+        '    width: 22px;',
+        '    height: 22px;',
+        '    border-radius: 50%;',
+        '    object-fit: cover;',
+        '    flex-shrink: 0;',
         '}',
-        '.llh-reaction-date {',
-        '    font-size: 0.85em;',
+        '.llh-avatar-fallback {',
+        '    width: 22px;',
+        '    height: 22px;',
+        '    border-radius: 50%;',
+        '    background: rgba(255, 255, 255, 0.12);',
+        '    display: inline-flex;',
+        '    align-items: center;',
+        '    justify-content: center;',
+        '    flex-shrink: 0;',
+        '}',
+        '.llh-avatar-fallback .material-symbols-outlined {',
+        '    font-size: 14px;',
         '    color: rgba(255, 255, 255, 0.5);',
+        '}',
+        '.llh-chip-user {',
+        '    font-weight: 500;',
+        '    white-space: nowrap;',
+        '}',
+        '.llh-chip-icon .material-symbols-outlined {',
+        '    font-size: 0.95em;',
+        '}',
+        '.llh-chip-label {',
+        '    color: var(--llh-chip-color);',
+        '    font-weight: 500;',
+        '    white-space: nowrap;',
+        '}',
+        '.llh-chip-date {',
+        '    font-size: 0.85em;',
+        '    color: rgba(255, 255, 255, 0.4);',
+        '    white-space: nowrap;',
         '}'
     ].join('\n');
     document.head.appendChild(style);
@@ -645,44 +680,85 @@
         title.textContent = 'Community Reactions';
         listSection.appendChild(title);
 
+        var grid = document.createElement('div');
+        grid.className = 'llh-reactions-grid';
+        listSection.appendChild(grid);
+
         reactions.forEach(function (r) {
             var type = r.reaction || r.Reaction || 0;
             var def = REACTIONS[type];
             if (!def) return;
 
-            var item = document.createElement('div');
-            item.className = 'llh-reaction-item';
+            var chip = document.createElement('div');
+            chip.className = 'llh-reaction-chip';
+            chip.style.setProperty('--llh-chip-color', def.color);
 
+            // Avatar — fetched live from Jellyfin API (always in sync with profile pic)
+            var userId = r.userId || r.UserId || '';
+            if (userId) {
+                var img = document.createElement('img');
+                img.className = 'llh-avatar';
+                img.alt = '';
+                img.src = ApiClient.getUrl('Users/' + userId + '/Images/Primary', { quality: 90, maxWidth: 44 });
+                img.onerror = function () {
+                    // Replace with fallback icon on error
+                    var fallback = document.createElement('span');
+                    fallback.className = 'llh-avatar-fallback';
+                    fallback.appendChild(createMaterialIcon('person'));
+                    chip.replaceChild(fallback, img);
+                };
+                chip.appendChild(img);
+            } else {
+                var fallback = document.createElement('span');
+                fallback.className = 'llh-avatar-fallback';
+                fallback.appendChild(createMaterialIcon('person'));
+                chip.appendChild(fallback);
+            }
+
+            // Username
+            var userName = document.createElement('span');
+            userName.className = 'llh-chip-user';
+            userName.textContent = r.userName || r.UserName || 'User';
+            chip.appendChild(userName);
+
+            // Reaction icon + label
+            var iconWrap = document.createElement('span');
+            iconWrap.className = 'llh-chip-icon';
             var icon = createReactionIcon(type);
             icon.style.color = def.color;
-            item.appendChild(icon);
+            iconWrap.appendChild(icon);
+            chip.appendChild(iconWrap);
 
-            var userName = document.createElement('span');
-            userName.className = 'llh-reaction-user';
-            userName.textContent = r.userName || r.UserName || 'User';
-            item.appendChild(userName);
+            var label = document.createElement('span');
+            label.className = 'llh-chip-label';
+            label.textContent = def.name;
+            chip.appendChild(label);
 
-            var reactionLabel = document.createElement('span');
-            reactionLabel.style.color = def.color;
-            reactionLabel.style.fontWeight = '500';
-            reactionLabel.textContent = def.name;
-            item.appendChild(reactionLabel);
-
+            // Date
             var timestamp = r.timestamp || r.Timestamp;
             if (timestamp) {
                 var dateEl = document.createElement('span');
-                dateEl.className = 'llh-reaction-date';
+                dateEl.className = 'llh-chip-date';
                 dateEl.textContent = new Date(timestamp).toLocaleDateString();
-                item.appendChild(dateEl);
+                chip.appendChild(dateEl);
             }
 
-            listSection.appendChild(item);
+            grid.appendChild(chip);
         });
     }
 
     // ─── Item ID detection ─────────────────────────────────────────────────
 
     function getItemId() {
+        // Skip non-item pages (user profile, settings, admin, etc.)
+        var hash = window.location.hash.toLowerCase();
+        if (hash.indexOf('userprofile') !== -1 ||
+            hash.indexOf('mypreferences') !== -1 ||
+            hash.indexOf('dashboard') !== -1 ||
+            hash.indexOf('configurationpage') !== -1) {
+            return null;
+        }
+
         var itemId = null;
         var href = window.location.href;
 
@@ -746,13 +822,14 @@
 
     var injectionAttempts = 0;
     var maxInjectionAttempts = 30;
+    var idResolutionCache = {}; // rawId -> resolvedId
 
-    function injectReactionsUI() {
+    async function injectReactionsUI() {
         if (isInjecting) return;
 
-        var itemId = getItemId();
+        var rawItemId = getItemId();
 
-        if (!itemId) {
+        if (!rawItemId) {
             injectionAttempts = 0;
             return;
         }
@@ -765,14 +842,37 @@
             return;
         }
 
-        // Item changed — clean up old UI
-        if (currentItemId !== itemId) {
+        isInjecting = true;
 
+        // Resolve efficient ID (Episode -> Series)
+        var finalItemId = rawItemId;
+        if (idResolutionCache[rawItemId]) {
+            finalItemId = idResolutionCache[rawItemId];
+        } else {
+            try {
+                // Only fetch if it looks like it might be an episode (or just always fetch safely)
+                // We'll trust the cache to keep it fast after first load
+                var item = await ApiClient.getItem(ApiClient.getCurrentUserId(), rawItemId);
+                if (item.Type === 'Episode' && item.SeriesId) {
+                    finalItemId = item.SeriesId;
+                } else {
+                    finalItemId = rawItemId;
+                }
+                idResolutionCache[rawItemId] = finalItemId;
+            } catch (e) {
+                console.error('[LikeLoveHate] Error resolving item ID:', e);
+                // Fallback to raw ID
+                finalItemId = rawItemId;
+            }
+        }
+
+        // Item changed — clean up old UI
+        if (currentItemId !== finalItemId) {
             var existingUI = document.getElementById('llh-reactions-ui');
             if (existingUI) existingUI.remove();
             cleanupAllButtons();
             currentReaction = 0;
-            currentItemId = itemId;
+            currentItemId = finalItemId;
             injectionAttempts = 0;
         }
 
@@ -791,35 +891,36 @@
             }
 
             if (targetContainer) {
-                isInjecting = true;
                 injectionAttempts = 0;
-                createReactionsPanel(itemId).then(function (ui) {
+                // Create panel with resolved ID
+                createReactionsPanel(currentItemId).then(function (ui) {
                     targetContainer.appendChild(ui);
-                    isInjecting = false;
 
                     // Now try header buttons too
-                    createHeaderButtons(itemId);
+                    createHeaderButtons(currentItemId);
                 });
-                return;
-            }
-            // Don't block other injection on panel failure - just retry silently
-            if (injectionAttempts < maxInjectionAttempts) {
-                injectionAttempts++;
+            } else {
+                // Don't block other injection on panel failure - just retry silently
+                if (injectionAttempts < maxInjectionAttempts) {
+                    injectionAttempts++;
+                }
             }
         }
 
         // ── 2. Inject header buttons (detail page, independent of panel) ──
         if (!isHeaderButtonsCreated()) {
-            createHeaderButtons(itemId);
+            createHeaderButtons(currentItemId);
         }
 
         // ── 3. Inject OSD buttons (video player, completely independent) ──
         if (!isOsdButtonsCreated()) {
             var videoOsd = document.querySelector('.videoOsdBottom');
             if (videoOsd) {
-                createOsdButtons(itemId);
+                createOsdButtons(currentItemId);
             }
         }
+
+        isInjecting = false;
     }
 
     // ─── Observer for navigation/DOM changes ───────────────────────────────

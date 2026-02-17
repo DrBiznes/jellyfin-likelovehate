@@ -169,6 +169,29 @@
                         Export Reactions (JSON)
                     </a>
                 </div>
+
+                <div class="verticalSection" style="margin-top: 2em;">
+                    <h2>Import Data</h2>
+                    <p>Restore reactions from a JSON file. Existing reactions will be merged.</p>
+                    <div style="display: flex; gap: 1em; align-items: center;">
+                        <input type="file" id="importFile" accept=".json" style="flex: 1;" />
+                        <button is="emby-button" type="button" class="raised button-submit block" id="btnImport">
+                            Import
+                        </button>
+                    </div>
+                    <div id="importResult" style="margin-top: 0.5em; font-weight: 500;"></div>
+                </div>
+
+                <div class="verticalSection"
+                    style="margin-top: 3em; border-top: 1px solid rgba(255,0,0,0.2); padding-top: 1.5em;">
+                    <h2 style="color: #ef5350;">Danger Zone</h2>
+                    <p>Permanently delete all reactions from the database. This cannot be undone.</p>
+                    <button is="emby-button" type="button" class="raised button-submit block" id="btnWipe"
+                        style="background: #c62828 !important;">
+                        Wipe All Reactions
+                    </button>
+                    <div id="wipeResult" style="margin-top: 0.5em; font-weight: 500;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -251,6 +274,96 @@
                 e.preventDefault();
                 return false;
             });
+
+        // Import handler
+        document.querySelector('#btnImport').addEventListener('click', function () {
+            var input = document.querySelector('#importFile');
+            var result = document.querySelector('#importResult');
+
+            if (!input.files || !input.files[0]) {
+                result.textContent = 'Please select a file first.';
+                result.style.color = '#ef5350';
+                return;
+            }
+
+            var file = input.files[0];
+            var formData = new FormData();
+            formData.append('file', file);
+
+            Dashboard.showLoadingMsg();
+            result.textContent = '';
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', ApiClient.getUrl('LikeLoveHate/Import'), true);
+            xhr.setRequestHeader('X-Emby-Token', ApiClient.accessToken());
+
+            xhr.onload = function () {
+                Dashboard.hideLoadingMsg();
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    var resp = JSON.parse(xhr.responseText);
+                    result.textContent = resp.message;
+                    result.style.color = '#66bb6a';
+                    input.value = ''; // Reset file input
+                } else {
+                    try {
+                        var resp = JSON.parse(xhr.responseText);
+                        result.textContent = 'Error: ' + (resp.message || xhr.statusText);
+                    } catch (e) {
+                        result.textContent = 'Error: ' + xhr.statusText;
+                    }
+                    result.style.color = '#ef5350';
+                }
+            };
+
+            xhr.onerror = function () {
+                Dashboard.hideLoadingMsg();
+                result.textContent = 'Network error occurred.';
+                result.style.color = '#ef5350';
+            };
+
+            xhr.send(formData);
+        });
+
+        // Wipe handler
+        document.querySelector('#btnWipe').addEventListener('click', function () {
+            // Native confirm dialog
+            if (!confirm('Are you sure you want to delete ALL reactions? This cannot be undone.')) {
+                return;
+            }
+
+            var result = document.querySelector('#wipeResult');
+            Dashboard.showLoadingMsg();
+            result.textContent = '';
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('DELETE', ApiClient.getUrl('LikeLoveHate/Wipe'), true);
+            xhr.setRequestHeader('X-Emby-Token', ApiClient.accessToken());
+
+            xhr.onload = function () {
+                Dashboard.hideLoadingMsg();
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    var resp = JSON.parse(xhr.responseText);
+                    result.textContent = resp.message;
+                    result.style.color = '#66bb6a';
+                } else {
+                    try {
+                        var resp = JSON.parse(xhr.responseText);
+                        result.textContent = 'Error: ' + (resp.message || xhr.statusText);
+                    } catch (e) {
+                        result.textContent = 'Error: ' + xhr.statusText;
+                    }
+                    result.style.color = '#ef5350';
+                }
+            };
+
+            xhr.onerror = function () {
+                Dashboard.hideLoadingMsg();
+                result.textContent = 'Network error occurred.';
+                result.style.color = '#ef5350';
+            };
+
+            xhr.send();
+        });
     </script>
 </body>
 

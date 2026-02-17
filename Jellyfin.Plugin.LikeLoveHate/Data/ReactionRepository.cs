@@ -133,6 +133,50 @@ public class ReactionRepository
         }
     }
 
+    /// <summary>
+    /// Import a list of reactions, merging with existing data.
+    /// </summary>
+    /// <param name="importedReactions">The reactions to import.</param>
+    /// <returns>The number of reactions imported/updated.</returns>
+    public int ImportReactions(IEnumerable<UserReaction> importedReactions)
+    {
+        lock (_lock)
+        {
+            int count = 0;
+            foreach (var reaction in importedReactions)
+            {
+                // Validate basic fields
+                if (reaction.UserId == Guid.Empty || reaction.ItemId == Guid.Empty || reaction.Reaction == ReactionType.None)
+                {
+                    continue;
+                }
+
+                var key = GetKey(reaction.ItemId, reaction.UserId);
+                _reactions[key] = reaction;
+                count++;
+            }
+
+            if (count > 0)
+            {
+                PersistReactions();
+            }
+
+            return count;
+        }
+    }
+
+    /// <summary>
+    /// Wipe all reactions from the database.
+    /// </summary>
+    public void WipeAllReactions()
+    {
+        lock (_lock)
+        {
+            _reactions.Clear();
+            PersistReactions();
+        }
+    }
+
     private void LoadReactions()
     {
         lock (_lock)
